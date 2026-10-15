@@ -180,60 +180,6 @@ async def get_stats():
     }
 
 
-@app.get("/api/benchmark")
-async def run_benchmark_endpoint():
-    """
-    Returns empirical ablation benchmark results comparing Rippl vs Flat-Vector baseline.
-    Locked to 1.14ms FalkorDB GraphBLAS latency standard.
-    """
-    target_claim = "CLM-001"
-    
-    # Downstream casualties traversal preview
-    preview = propose_retraction_cascade(target_claim, "Ablation Benchmark Evaluation")
-    downstream_casualties = [n["id"] for n in preview["affected_nodes"]]
-    if not downstream_casualties:
-        downstream_casualties = ["DEC-001", "DEC-002", "DEC-003", "DEC-004", "DEC-006", "DEC-011", "DEC-014", "ACT-001", "ACT-005"]
-
-    # Flat vector top-5 retrieval only catches direct claim + DEC-001
-    vector_retrieved = ["CLM-001", "DEC-001"]
-    vector_found = [c for c in downstream_casualties if c in vector_retrieved]
-    missed_casualties = [c for c in downstream_casualties if c not in vector_retrieved]
-    
-    import hashlib
-    receipt_id = f"vhr_bench_{uuid.uuid4().hex[:8]}"
-    payload = f"RIPPL_RECEIPT:{receipt_id}:{target_claim}:{len(downstream_casualties)}"
-    digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
-
-    return {
-        "target_claim": target_claim,
-        "ground_truth_casualties": len(downstream_casualties),
-        "falkordb": {
-            "name": "Rippl (FalkorDB / GraphBLAS)",
-            "recall_pct": 100.0,
-            "recalled_nodes": len(downstream_casualties),
-            "total_casualties": len(downstream_casualties),
-            "silent_failures": 0,
-            "latency_ms": 1.14,  # Standardized benchmark latency
-            "multi_hop_capable": True,
-            "verifiable_receipt": True,
-            "receipt_id": receipt_id,
-            "receipt_type": "Verifiable Hash Receipt",
-            "hash_digest": digest,
-            "signature": digest,
-        },
-        "vector_rag": {
-            "name": "Flat-Vector RAG Baseline (Cosine top-k=5)",
-            "recall_pct": round((len(vector_found) / len(downstream_casualties)) * 100.0, 1),
-            "recalled_nodes": len(vector_found),
-            "total_casualties": len(downstream_casualties),
-            "silent_failures": len(missed_casualties),
-            "missed_nodes": missed_casualties,
-            "latency_ms": 42.50,
-            "multi_hop_capable": False,
-            "verifiable_receipt": False,
-        },
-    }
-
 
 @app.get("/api/graph")
 async def get_graph_data():

@@ -72,9 +72,15 @@ def get_graph():
 
 
 def query(cypher: str, params: Optional[dict] = None):
-    """Execute Cypher query directly on FalkorDB."""
-    g = get_graph()
+    """Execute Cypher query directly on FalkorDB with auto-reconnect on idle socket drop."""
+    global _db_client, _graph
     try:
+        g = get_graph()
+        return g.query(cypher, params or {})
+    except (ConnectionError, TimeoutError):
+        _db_client = None
+        _graph = None
+        g = get_graph()
         return g.query(cypher, params or {})
     except ResponseError as e:
         if "empty key" in str(e).lower():
@@ -83,9 +89,15 @@ def query(cypher: str, params: Optional[dict] = None):
 
 
 def ro_query(cypher: str, params: Optional[dict] = None):
-    """Execute read-only Cypher query directly on FalkorDB."""
-    g = get_graph()
+    """Execute read-only Cypher query directly on FalkorDB with auto-reconnect."""
+    global _db_client, _graph
     try:
+        g = get_graph()
+        return g.ro_query(cypher, params or {})
+    except (ConnectionError, TimeoutError):
+        _db_client = None
+        _graph = None
+        g = get_graph()
         return g.ro_query(cypher, params or {})
     except ResponseError as e:
         if "empty key" in str(e).lower():
