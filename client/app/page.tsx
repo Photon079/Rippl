@@ -342,6 +342,7 @@ function RipplProductExperience() {
               </div>
             )}
           </div>
+        </div>
       </header>
 
       {/* ─── Prominent Loud Error State if FalkorDB / Backend is Down (Per Removal Rule) ─── */}
