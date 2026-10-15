@@ -1,92 +1,91 @@
 {
   "benchmark_title": "Rippl Quantitative Invalidation Benchmark (FalkorDB vs Recursive SQL vs Flat Vector RAG)",
-  "sample_size_n": 100,
-  "target_premise": "CLM-001 (DB-Shard-09 Lag < 5ms)",
+  "evaluation_scope": "All 30 claims evaluated against ground-truth causal sets authored in seed_pep.py",
+  "sample_size_timing_runs": 100,
   "total_graph_nodes": 113,
-  "ground_truth_casualties_count": 5,
-  "ground_truth_nodes": [
-    "CLM-001",
-    "DEC-001",
-    "DEC-002",
-    "ACT-001",
-    "ACT-018"
-  ],
-  "missed_by_vector_baseline": [
-    "DEC-002",
-    "ACT-001",
-    "ACT-018"
-  ],
+  "embedding_model": "BAAI/bge-small-en-v1.5 (384-dim, ONNX runtime via fastembed)",
+  "macro_average_recall": {
+    "falkordb_pct": 100.0,
+    "recursive_sql_pct": 100.0,
+    "flat_vector_rag_pct": 45.4
+  },
+  "target_premise": "CLM-001 (DB-Shard-09 Lag < 5ms)",
+  "clm_001_breakdown": {
+    "claim_id": "CLM-001",
+    "ground_truth_count": 5,
+    "vector_recalled_count": 1,
+    "vector_recall_pct": 20.0,
+    "missed_nodes": [
+      "ACT-018",
+      "DEC-001",
+      "DEC-002",
+      "ACT-001"
+    ]
+  },
   "rippl_falkordb": {
     "name": "Rippl (FalkorDB GraphBLAS)",
-    "engine": "FalkorDB / GraphBLAS sparse-matrix BFS",
-    "n": 100,
-    "latency_ms": 0.86,
-    "latency_p50_ms": 0.81,
-    "latency_p95_ms": 1.23,
-    "latency_p99_ms": 1.34,
-    "recall_pct": 100.0,
-    "recalled_count": 5,
-    "total_ground_truth": 5,
-    "silent_failures": 0,
-    "traversal_type": "Variable-length GraphBLAS BFS (1-5 hops)",
+    "database": "FalkorDB (Sparse Adjacency Matrices)",
+    "protocol": "client-server (TCP socket, localhost:6380)",
+    "engine": "Variable-length GraphBLAS BFS (1-5 hops)",
+    "n_timing_runs": 100,
+    "latency_ms": 0.93,
+    "latency_p50_ms": 0.86,
+    "latency_p95_ms": 1.21,
     "receipt": "SHA-256 hash receipt",
-    "nodes_found": [
+    "sample_clm001_nodes_found": [
       "CLM-001",
       "DEC-001",
       "DEC-002",
       "ACT-001",
       "ACT-018"
-    ]
+    ],
+    "recall_pct": 100.0,
+    "clm001_recall_pct": 100.0,
+    "silent_failures": 0
   },
   "recursive_sql": {
     "name": "Recursive SQL CTE (SQLite 3)",
-    "database": "SQLite 3 (in-memory relational engine)",
+    "database": "SQLite 3 (In-memory Relational Engine)",
+    "protocol": "in-process (direct memory execution)",
     "engine": "SQL:1999 recursive CTE (WITH RECURSIVE)",
-    "n": 100,
+    "n_timing_runs": 100,
     "latency_ms": 0.01,
     "latency_p50_ms": 0.01,
-    "latency_p95_ms": 0.011,
-    "recall_pct": 100.0,
-    "recalled_count": 5,
-    "total_ground_truth": 5,
-    "silent_failures": 0,
-    "traversal_type": "Iterative relational self-joins (SQL:1999 CTE)",
+    "latency_p95_ms": 0.01,
     "receipt": "None (unverifiable)",
-    "nodes_found": [
+    "sample_clm001_nodes_found": [
       "CLM-001",
       "DEC-001",
       "DEC-002",
       "ACT-001",
       "ACT-018"
     ],
-    "comparison_note": "Both FalkorDB and Recursive SQL achieve 100% recall. On 113 nodes, raw execution time differences (sub-millisecond) are negligible. The architectural distinction is expressiveness: 1 line of Cypher vs. 15 lines of recursive union joins, plus FalkorDB's native sparse adjacency matrix storage."
+    "architectural_note": "Most of the 0.85ms gap between FalkorDB and SQLite is client-server network socket overhead. On 113 nodes, both execute in sub-millisecond time. The key distinction is query expressiveness: 1 concise Cypher line vs. 15 lines of recursive SQL self-joins.",
+    "recall_pct": 100.0,
+    "clm001_recall_pct": 100.0,
+    "silent_failures": 0
   },
   "vector_rag": {
     "name": "Flat-Vector RAG (Cosine Top-5)",
-    "database": "Vector Index (1536-dim normalized embeddings)",
+    "database": "Vector Index (BAAI/bge-small-en-v1.5 384-dim)",
+    "protocol": "in-process (local dense vector index)",
     "engine": "Dense vector cosine similarity (top-k=5)",
-    "embedded_content": "Node text descriptions (claim statement, decision policy text, action command description). Embeddings reflect semantic/lexical similarity.",
-    "n": 100,
-    "latency_ms": 0.016,
-    "latency_p50_ms": 0.015,
-    "recall_pct": 40.0,
-    "recalled_count": 2,
-    "total_ground_truth": 5,
-    "silent_failures": 3,
-    "traversal_type": "Single-hop semantic similarity (No graph topology)",
+    "n_timing_runs": 100,
+    "latency_ms": 0.011,
+    "latency_p50_ms": 0.01,
     "receipt": "None (unverifiable)",
-    "nodes_found": [
-      "CLM-001",
-      "DEC-001"
-    ],
+    "embedded_content": "Node text descriptions (claim statements, decision policies, action descriptions).",
+    "recall_pct": 45.4,
+    "clm001_recall_pct": 20.0,
+    "silent_failures": 4,
     "missed_nodes": [
+      "ACT-018",
+      "DEC-001",
       "DEC-002",
-      "ACT-001",
-      "ACT-018"
-    ],
-    "why_recall_is_low": "Vector similarity only retrieves nodes mentioning 'Shard-09' (CLM-001, DEC-001). Downstream regional policies (DEC-002) and billing commands (ACT-001, ACT-018) have zero semantic overlap with database lag metrics, causing silent agent failures."
+      "ACT-001"
+    ]
   },
-  "timestamp": 1792086376,
-  "generated_at": "2026-10-15 17:46:16 UTC",
-  "baseline_footnote": "Evaluated on 113 load-bearing nodes in FalkorDB. Ground truth blast radius computed via variable-length GraphBLAS BFS. Flat-Vector RAG retrieves solely via dense vector cosine similarity (top-5), which cannot traverse indirect causal links, resulting in silent agent execution failures."
+  "timestamp": 1792087101,
+  "generated_at": "2026-10-15 17:58:21 UTC",
+  "baseline_footnote": "Evaluated across all 30 claims in the 113-node causal graph. Ground truth blast radius is computed from the causal edges authored in seed_pep.py. Both FalkorDB and SQLite CTE achieve 100.0% recall in sub-millisecond execution. Most of the 0.85ms latency gap reflects client-server network socket overhead of FalkorDB compared to in-process execution of SQLite. Flat-Vector RAG uses real BAAI/bge-small-en-v1.5 embeddings of node text, achieving 45.4% macro-average recall because downstream operational policies and execution actions share zero lexical or semantic similarity with low-level database metrics."
 }
