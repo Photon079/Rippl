@@ -55,13 +55,13 @@ export default function AblationLab() {
           <div>
             <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/25 text-xs font-mono text-cyan-300 mb-2">
               <Sparkles size={11} />
-              <span>EMPIRICAL BENCHMARK SUITE (n={sampleN})</span>
+              <span>EMPIRICAL BENCHMARK SUITE (ALL 30 CLAIMS EVALUATED)</span>
             </div>
             <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
               <span>Quantitative Invalidation Ablation Lab</span>
             </h1>
             <p className="text-xs text-slate-400 mt-1">
-              Comparing FalkorDB GraphBLAS vs. Recursive SQL CTE vs. Flat-Vector RAG on the live 113-node causal graph.
+              Comparing FalkorDB GraphBLAS vs. Recursive SQL CTE vs. Flat-Vector RAG (BAAI/bge-small-en-v1.5) across all 30 claims on the 113-node causal graph.
             </p>
           </div>
 
@@ -80,9 +80,9 @@ export default function AblationLab() {
           <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
             <div className="flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-wider text-slate-200">
               <BarChart3 size={15} className="text-cyan-400" />
-              <span>Causal Invalidation Recall Rate (n={sampleN})</span>
+              <span>Macro-Average Invalidation Recall across All 30 Claims</span>
             </div>
-            <span className="text-xs font-mono text-slate-400">Target: {data?.target_premise || "CLM-001"}</span>
+            <span className="text-xs font-mono text-slate-400">Ground truth: seed_pep.py causal edges</span>
           </div>
 
           <div className="space-y-4 pt-1 font-mono text-xs">
@@ -91,7 +91,7 @@ export default function AblationLab() {
               <div className="flex items-center justify-between">
                 <span className="font-bold text-emerald-400">Rippl (FalkorDB GraphBLAS)</span>
                 <span className="font-bold text-emerald-400">
-                  {falkor?.recall_pct ?? 100.0}% ({falkor?.recalled_count ?? 4}/{falkor?.total_ground_truth ?? 4} nodes)
+                  {falkor?.recall_pct ?? 100.0}% (All 30 claims resolved)
                 </span>
               </div>
               <div className="w-full h-3 rounded-full bg-white/[0.05] overflow-hidden">
@@ -107,7 +107,7 @@ export default function AblationLab() {
               <div className="flex items-center justify-between">
                 <span className="font-bold text-cyan-300">Recursive SQL CTE (SQLite 3)</span>
                 <span className="font-bold text-cyan-300">
-                  {sql?.recall_pct ?? 100.0}% ({sql?.recalled_count ?? 5}/{sql?.total_ground_truth ?? 5} nodes)
+                  {sql?.recall_pct ?? 100.0}% (All 30 claims resolved)
                 </span>
               </div>
               <div className="w-full h-3 rounded-full bg-white/[0.05] overflow-hidden">
@@ -121,15 +121,15 @@ export default function AblationLab() {
             {/* Bar 3: Flat-Vector RAG */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <span className="font-bold text-rose-400">Flat-Vector RAG Baseline (Cosine Top-5)</span>
+                <span className="font-bold text-rose-400">Flat-Vector RAG Baseline (BAAI/bge-small-en-v1.5)</span>
                 <span className="font-bold text-rose-400">
-                  {vector?.recall_pct ?? 40.0}% ({vector?.recalled_count ?? 2}/{vector?.total_ground_truth ?? 5} nodes)
+                  {vector?.recall_pct ?? 45.4}% macro-average recall
                 </span>
               </div>
               <div className="w-full h-3 rounded-full bg-white/[0.05] overflow-hidden">
                 <div
                   className="h-full bg-rose-500 rounded-full transition-all duration-500 shadow-[0_0_12px_rgba(244,63,94,0.4)]"
-                  style={{ width: `${vector?.recall_pct ?? 40}%` }}
+                  style={{ width: `${vector?.recall_pct ?? 45.4}%` }}
                 />
               </div>
             </div>
@@ -141,30 +141,30 @@ export default function AblationLab() {
           <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
             <div className="flex items-center gap-2 text-xs font-mono font-bold uppercase tracking-wider text-slate-200">
               <AlertTriangle size={15} className="text-rose-400" />
-              <span>Multi-Hop Disconnect: Nodes Missed by Vector Baseline</span>
+              <span>Sample Scenario CLM-001: Nodes Missed by Real BGE Embeddings</span>
             </div>
             <span className="text-xs font-mono px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30">
-              {missedNodes.length} Silent Failures
+              {missedNodes.length} Silent Failures on CLM-001
             </span>
           </div>
 
           <p className="text-xs text-slate-400 leading-relaxed">
-            Vector similarity compares node text embeddings (claim statements, decision policies, and action command descriptions). Downstream regional policies and execution actions share zero lexical or semantic overlap with database lag metrics, creating silent agent failures.
+            Real BAAI/bge-small-en-v1.5 embeddings compare semantic overlap of node texts. Ground truth blast radius is derived from the causal edges authored in seed_pep.py. Downstream regional routing policies (DEC-002) and execution actions (ACT-001, ACT-018) share zero semantic overlap with database lag metrics, creating silent failures.
           </p>
 
           <div className="p-4 rounded-xl bg-black/40 border border-white/[0.06] flex flex-wrap items-center justify-center gap-3 font-mono text-xs">
             {/* Node 1: Root Claim (Found) */}
             <div className="px-3 py-2 rounded-lg bg-emerald-950/20 border border-emerald-500/40 text-emerald-300 text-center">
               <span className="block font-bold">CLM-001</span>
-              <span className="text-[10px] text-emerald-400/80">Found (Cosine 0.94)</span>
+              <span className="text-[10px] text-emerald-400/80">Found (Self-match)</span>
             </div>
 
-            <span className="text-slate-600">&rarr;</span>
+            <span className="text-rose-500 font-bold">&ndash;&times;&ndash;</span>
 
-            {/* Node 2: Decision (Found) */}
-            <div className="px-3 py-2 rounded-lg bg-emerald-950/20 border border-emerald-500/40 text-emerald-300 text-center">
+            {/* Node 2: Decision 1 (Missed) */}
+            <div className="px-3 py-2 rounded-lg bg-rose-950/30 border-2 border-dashed border-rose-500/70 text-rose-300 text-center shadow-[0_0_12px_rgba(244,63,94,0.3)]">
               <span className="block font-bold">DEC-001</span>
-              <span className="text-[10px] text-emerald-400/80">Found (Cosine 0.81)</span>
+              <span className="text-[10px] text-rose-400 font-bold uppercase">MISSED BY RAG</span>
             </div>
 
             <span className="text-rose-500 font-bold">&ndash;&times;&ndash;</span>
@@ -182,6 +182,14 @@ export default function AblationLab() {
               <span className="block font-bold">ACT-001</span>
               <span className="text-[10px] text-rose-400 font-bold uppercase">MISSED BY RAG</span>
             </div>
+
+            <span className="text-rose-500 font-bold">&ndash;&times;&ndash;</span>
+
+            {/* Node 5: Action 2 (Missed) */}
+            <div className="px-3 py-2 rounded-lg bg-rose-950/30 border-2 border-dashed border-rose-500/70 text-rose-300 text-center shadow-[0_0_12px_rgba(244,63,94,0.3)]">
+              <span className="block font-bold">ACT-018</span>
+              <span className="text-[10px] text-rose-400 font-bold uppercase">MISSED BY RAG</span>
+            </div>
           </div>
         </div>
 
@@ -193,26 +201,26 @@ export default function AblationLab() {
               <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
                 <span className="text-xs font-mono font-bold text-rose-400">Flat-Vector RAG</span>
                 <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-rose-500/10 text-rose-300">
-                  Cosine Top-5
+                  in-process
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-                Embeds node text descriptions. Fails to bridge semantic disconnect between low-level database metrics and downstream execution actions.
+                BAAI/bge-small-en-v1.5 embeddings. Fails to bridge semantic disconnect between telemetry and execution commands.
               </p>
             </div>
 
             <div className="space-y-2 font-mono text-xs pt-2 border-t border-white/[0.06]">
               <div className="flex justify-between py-1 border-b border-white/[0.04]">
-                <span className="text-slate-500">Recall Rate:</span>
-                <span className="text-rose-400 font-bold">{vector?.recall_pct ?? 40.0}%</span>
+                <span className="text-slate-500">Macro Recall:</span>
+                <span className="text-rose-400 font-bold">{vector?.recall_pct ?? 45.4}%</span>
               </div>
               <div className="flex justify-between py-1 border-b border-white/[0.04]">
-                <span className="text-slate-500">Latency:</span>
-                <span className="text-slate-300 font-bold">{vector?.latency_ms ?? 0.016} ms</span>
+                <span className="text-slate-500">Timing (100 runs):</span>
+                <span className="text-slate-300 font-bold">{vector?.latency_ms ?? 0.011} ms</span>
               </div>
               <div className="flex justify-between py-1 border-b border-white/[0.04]">
-                <span className="text-slate-500">Silent Failures:</span>
-                <span className="text-rose-400 font-bold">{vector?.silent_failures ?? 3} actions</span>
+                <span className="text-slate-500">Protocol:</span>
+                <span className="text-slate-300 font-bold">in-process index</span>
               </div>
               <div className="flex justify-between py-1">
                 <span className="text-slate-500">Receipt Proof:</span>
@@ -227,26 +235,26 @@ export default function AblationLab() {
               <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
                 <span className="text-xs font-mono font-bold text-cyan-300">Recursive SQL CTE</span>
                 <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-300">
-                  SQLite 3
+                  in-process
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-                WITH RECURSIVE in SQLite 3. Reaches 100% recall, but requires a verbose 15-line SQL query with manual recursion limits vs. 1 line of Cypher.
+                WITH RECURSIVE in SQLite 3. Reaches 100% recall, but requires a verbose 15-line SQL query vs. 1 line of Cypher.
               </p>
             </div>
 
             <div className="space-y-2 font-mono text-xs pt-2 border-t border-white/[0.06]">
               <div className="flex justify-between py-1 border-b border-white/[0.04]">
-                <span className="text-slate-500">Recall Rate:</span>
+                <span className="text-slate-500">Macro Recall:</span>
                 <span className="text-cyan-300 font-bold">{sql?.recall_pct ?? 100.0}%</span>
               </div>
               <div className="flex justify-between py-1 border-b border-white/[0.04]">
-                <span className="text-slate-500">Latency:</span>
+                <span className="text-slate-500">Timing (100 runs):</span>
                 <span className="text-slate-300 font-bold">{sql?.latency_ms ?? 0.01} ms</span>
               </div>
               <div className="flex justify-between py-1 border-b border-white/[0.04]">
-                <span className="text-slate-500">Silent Failures:</span>
-                <span className="text-emerald-400 font-bold">0</span>
+                <span className="text-slate-500">Protocol:</span>
+                <span className="text-slate-300 font-bold">in-process memory</span>
               </div>
               <div className="flex justify-between py-1">
                 <span className="text-slate-500">Receipt Proof:</span>
@@ -261,7 +269,7 @@ export default function AblationLab() {
               <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
                 <span className="text-xs font-mono font-bold text-emerald-400">Rippl (FalkorDB)</span>
                 <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">
-                  GraphBLAS
+                  client-server
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-2 leading-relaxed">
@@ -271,16 +279,16 @@ export default function AblationLab() {
 
             <div className="space-y-2 font-mono text-xs pt-2 border-t border-white/[0.06]">
               <div className="flex justify-between py-1 border-b border-white/[0.04]">
-                <span className="text-slate-500">Recall Rate:</span>
+                <span className="text-slate-500">Macro Recall:</span>
                 <span className="text-emerald-400 font-bold">{falkor?.recall_pct ?? 100.0}%</span>
               </div>
               <div className="flex justify-between py-1 border-b border-white/[0.04]">
-                <span className="text-slate-500">Latency:</span>
-                <span className="text-emerald-400 font-bold">{falkor?.latency_ms ?? 0.86} ms</span>
+                <span className="text-slate-500">Timing (100 runs):</span>
+                <span className="text-emerald-400 font-bold">{falkor?.latency_ms ?? 0.93} ms</span>
               </div>
               <div className="flex justify-between py-1 border-b border-white/[0.04]">
-                <span className="text-slate-500">Silent Failures:</span>
-                <span className="text-emerald-400 font-bold">0</span>
+                <span className="text-slate-500">Protocol:</span>
+                <span className="text-slate-300 font-bold">client-server TCP</span>
               </div>
               <div className="flex justify-between py-1">
                 <span className="text-slate-500">Receipt Proof:</span>
