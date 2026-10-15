@@ -341,9 +341,37 @@ def seed_pep_and_enterprise_graph() -> Dict[str, Any]:
             {"ag_id": ag_id, "c_id": c_id},
         )
 
-    # 8. Compute total counts
-    res_nodes = query("MATCH (n) RETURN count(n) AS c")
-    res_edges = query("MATCH ()-[r]->() RETURN count(r) AS c")
+    # 8. Ingest Initial Persistent Review Queue Items into FalkorDB
+    import json
+    review_seed = [
+        ("REV-001", "CLM-001", "Shard-09 metrics: 12.3% write throughput, latency p99 < 8ms under peak database load", "DB-Shard-09 Production Telemetry", "Telemetry Sentry Agent (AGT-001)", "pending", "Corrupted index detected on Shard-09 write log; metrics are invalid.", now - 3600000, json.dumps(["DEC-001", "DEC-002"]), json.dumps({"total_nodes_invalidated": 4, "decisions_compromised": 2, "actions_blocked": 1, "max_propagation_depth": 3})),
+        ("REV-002", "CLM-002", "Per contractual agreement Section 4.2, Northwind vendor guarantees 99.99% uptime SLA", "Vendor SLA Agreement (Northwind-Cloud)", "Compliance Auditor (PER-002)", "pending", "New addendum signed reducing vendor SLA to 99.9% during maintenance window.", now - 7200000, json.dumps(["DEC-005"]), json.dumps({"total_nodes_invalidated": 3, "decisions_compromised": 1, "actions_blocked": 1, "max_propagation_depth": 2})),
+        ("REV-003", "CLM-003", "Current cluster headroom supports 2.5x traffic surge without database shard splitting", "Enterprise Capacity Planning & Headroom Model (SRC-004)", "Capacity Sentinel Agent (AGT-001)", "pending", "Peak traffic audit indicates memory bus exhaustion at 1.8x threshold; headroom model overstated.", now - 10800000, json.dumps(["DEC-002"]), json.dumps({"total_nodes_invalidated": 3, "decisions_compromised": 1, "actions_blocked": 1, "max_propagation_depth": 2})),
+    ]
+    for r_id, c_id, text, stitle, prop, status, reason, cat, decs, blast in review_seed:
+        query("""
+        MERGE (r:ReviewItem {id: $id})
+        SET r.claim_id = $claim_id,
+            r.claim_text = $text,
+            r.source_title = $stitle,
+            r.proposed_by = $prop,
+            r.status = $status,
+            r.reason = $reason,
+            r.created_at = $cat,
+            r.affected_decisions = $decs,
+            r.blast_radius = $blast
+        WITH r
+        MATCH (c:Claim {id: $claim_id})
+        MERGE (c)-[:HAS_REVIEW]->(r)
+        """, {
+            "id": r_id, "claim_id": c_id, "text": text, "stitle": stitle,
+            "prop": prop, "status": status, "reason": reason, "cat": cat,
+            "decs": decs, "blast": blast
+        })
+
+    # 9. Compute total causal graph counts (113 causal nodes)
+    res_nodes = query("MATCH (n) WHERE NOT n:ReviewItem RETURN count(n) AS c")
+    res_edges = query("MATCH (s)-[r]->(t) WHERE NOT s:ReviewItem AND NOT t:ReviewItem RETURN count(r) AS c")
     node_count = res_nodes.result_set[0][0]
     edge_count = res_edges.result_set[0][0]
 

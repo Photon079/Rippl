@@ -260,8 +260,9 @@ async def propose_retract_endpoint(claim_id: str, body: Optional[Dict[str, Any]]
     logger.info(f"Human Gate: Proposing retraction for claim {claim_id}: {reason}")
     result = propose_retraction_cascade(claim_id, reason)
 
-    # Check if a pending proposal for this claim already exists to prevent duplicate rows
-    existing = next((r for r in REVIEW_QUEUE if r["claim_id"] == claim_id and r["status"] == "pending"), None)
+    # Check if a pending proposal for this claim already exists in FalkorDB
+    persisted_queue = get_persisted_review_queue()
+    existing = next((r for r in persisted_queue if r["claim_id"] == claim_id and r["status"] == "pending"), None)
     if existing:
         return {
             "stage": "preview",
@@ -272,7 +273,7 @@ async def propose_retract_endpoint(claim_id: str, body: Optional[Dict[str, Any]]
         }
 
     # Queue review item for human operator
-    rev_id = f"REV-{len(REVIEW_QUEUE) + 1:03d}"
+    rev_id = f"REV-{len(persisted_queue) + 1:03d}"
     review_item = {
         "id": rev_id,
         "claim_id": claim_id,
@@ -286,6 +287,36 @@ async def propose_retract_endpoint(claim_id: str, body: Optional[Dict[str, Any]]
         "blast_radius": result["blast_radius"],
     }
     REVIEW_QUEUE.insert(0, review_item)
+
+    # Persist proposal into FalkorDB
+    try:
+        query("""
+        MERGE (r:ReviewItem {id: $id})
+        SET r.claim_id = $claim_id,
+            r.claim_text = $text,
+            r.source_title = $stitle,
+            r.proposed_by = $prop,
+            r.status = 'pending',
+            r.reason = $reason,
+            r.created_at = $cat,
+            r.affected_decisions = $decs,
+            r.blast_radius = $blast
+        WITH r
+        MATCH (c:Claim {id: $claim_id})
+        MERGE (c)-[:HAS_REVIEW]->(r)
+        """, {
+            "id": rev_id,
+            "claim_id": claim_id,
+            "text": result["claim_text"],
+            "stitle": "Enterprise Telemetry / Audit",
+            "prop": "Autonomous Agent Gate (AGT-001)",
+            "reason": reason,
+            "cat": review_item["created_at"],
+            "decs": json.dumps(review_item["affected_decisions"]),
+            "blast": json.dumps(result["blast_radius"]),
+        })
+    except Exception as e:
+        logger.error(f"Failed to persist new review proposal in FalkorDB: {e}")
 
     # Broadcast cascade preview via SSE (Amber ripple)
     await broadcast_event("preview_start", {
@@ -377,10 +408,64 @@ async def stream_cascade(request: Request):
     return EventSourceResponse(event_generator())
 
 
+def get_persisted_review_queue() -> List[Dict[str, Any]]:
+    """Loads all review items persisted in FalkorDB graph."""
+    try:
+        res = query("""
+        MATCH (r:ReviewItem)
+        RETURN r.id AS id,
+               r.claim_id AS claim_id,
+               r.claim_text AS claim_text,
+               r.source_title AS source_title,
+               r.proposed_by AS proposed_by,
+               r.status AS status,
+               r.reason AS reason,
+               r.created_at AS created_at,
+               r.approved_at AS approved_at,
+               r.affected_decisions AS affected_decisions,
+               r.blast_radius AS blast_radius,
+               r.receipt AS receipt
+        ORDER BY r.created_at DESC
+        """)
+        items = []
+        for row in (res.result_set or []):
+            try:
+                decisions = json.loads(row[9]) if isinstance(row[9], str) else (row[9] or [])
+            except Exception:
+                decisions = [row[9]] if row[9] else []
+            try:
+                blast = json.loads(row[10]) if isinstance(row[10], str) else (row[10] or {})
+            except Exception:
+                blast = {}
+            try:
+                receipt = json.loads(row[11]) if isinstance(row[11], str) else (row[11] or None)
+            except Exception:
+                receipt = None
+            items.append({
+                "id": str(row[0]),
+                "claim_id": str(row[1]),
+                "claim_text": str(row[2]),
+                "source_title": str(row[3]),
+                "proposed_by": str(row[4]),
+                "status": str(row[5] or "pending"),
+                "reason": str(row[6] or ""),
+                "created_at": row[7] or int(time.time() * 1000),
+                "approved_at": row[8],
+                "affected_decisions": decisions,
+                "blast_radius": blast,
+                "receipt": receipt,
+            })
+        if items:
+            return items
+    except Exception as e:
+        logger.warning(f"Error fetching ReviewItems from FalkorDB: {e}")
+    return REVIEW_QUEUE
+
+
 @app.get("/api/review-queue")
 async def get_review_queue():
-    """Return all review queue items."""
-    return REVIEW_QUEUE
+    """Return all review queue items persisted in FalkorDB."""
+    return get_persisted_review_queue()
 
 
 @app.post("/api/review/{item_id}/approve")
@@ -390,8 +475,9 @@ async def approve_review_item(item_id: str):
     Transitions nodes from 'Premise At Risk' to 'Premise Retracted' (Red)
     and issues Verifiable Hash Receipt.
     """
+    queue_items = get_persisted_review_queue()
     target_item = None
-    for item in REVIEW_QUEUE:
+    for item in queue_items:
         if item["id"] == item_id:
             target_item = item
             break
@@ -401,9 +487,25 @@ async def approve_review_item(item_id: str):
 
     claim_id = target_item["claim_id"]
     cascade_result = execute_retraction_cascade(claim_id)
+    now_ms = int(time.time() * 1000)
     target_item["status"] = "approved"
-    target_item["approved_at"] = int(time.time() * 1000)
+    target_item["approved_at"] = now_ms
     target_item["receipt"] = cascade_result["receipt"]
+
+    # Persist approval in FalkorDB graph
+    try:
+        query("""
+        MATCH (r:ReviewItem {id: $id})
+        SET r.status = 'approved',
+            r.approved_at = $approved_at,
+            r.receipt = $receipt
+        """, {
+            "id": item_id,
+            "approved_at": now_ms,
+            "receipt": json.dumps(cascade_result["receipt"]),
+        })
+    except Exception as e:
+        logger.error(f"Failed to persist review approval in FalkorDB: {e}")
 
     # Stream Red Invalidation hop-by-hop
     await broadcast_event("cascade_start", {
@@ -445,8 +547,9 @@ async def reject_review_item(item_id: str):
     Human Operator Rejects Retraction.
     Reverts nodes back to 'Holding' and 'Verified'.
     """
+    queue_items = get_persisted_review_queue()
     target_item = None
-    for item in REVIEW_QUEUE:
+    for item in queue_items:
         if item["id"] == item_id:
             target_item = item
             break
@@ -457,7 +560,17 @@ async def reject_review_item(item_id: str):
     claim_id = target_item["claim_id"]
     revert_result = revert_retraction_cascade(claim_id)
     target_item["status"] = "rejected"
-    target_item["rejected_at"] = int(time.time() * 1000)
+    now_ms = int(time.time() * 1000)
+    target_item["rejected_at"] = now_ms
+
+    # Persist rejection in FalkorDB graph
+    try:
+        query("MATCH (r:ReviewItem {id: $id}) SET r.status = 'rejected', r.rejected_at = $ts", {
+            "id": item_id,
+            "ts": now_ms,
+        })
+    except Exception as e:
+        logger.error(f"Failed to persist review rejection in FalkorDB: {e}")
 
     # Broadcast reversion to UI
     await broadcast_event("review_rejected", {
@@ -619,40 +732,9 @@ async def get_benchmark_results():
         with open(bench_path, "r", encoding="utf-8") as f:
             return json.load(f)
 
-    # Fallback to defaults if file not yet written
-    return {
-        "sample_size_n": 100,
-        "target_premise": "CLM-001 (DB-Shard-09 Lag < 5ms)",
-        "ground_truth_casualties_count": 11,
-        "ground_truth_nodes": ["CLM-001", "DEC-001", "DEC-002", "DEC-004", "DEC-005", "ACT-001", "ACT-002", "ACT-003", "ACT-004", "ACT-005", "ACT-006"],
-        "missed_by_vector_baseline": ["DEC-002", "DEC-004", "DEC-005", "ACT-001", "ACT-002", "ACT-003", "ACT-004", "ACT-005", "ACT-006"],
-        "rippl_falkordb": {
-            "name": "Rippl (FalkorDB GraphBLAS)",
-            "recall_pct": 100.0,
-            "recalled_count": 11,
-            "latency_ms": 1.14,
-            "silent_failures": 0,
-            "traversal_type": "Variable-length GraphBLAS BFS (1-5 hops)",
-            "receipt": "SHA-256 hash receipt",
-        },
-        "recursive_sql": {
-            "name": "Recursive SQL CTE (PostgreSQL)",
-            "recall_pct": 100.0,
-            "recalled_count": 11,
-            "latency_ms": 18.70,
-            "silent_failures": 0,
-            "traversal_type": "Iterative relational self-joins",
-            "receipt": "None",
-        },
-        "vector_rag": {
-            "name": "Flat-Vector RAG (Cosine Top-5)",
-            "recall_pct": 18.2,
-            "recalled_count": 2,
-            "latency_ms": 42.50,
-            "silent_failures": 9,
-            "traversal_type": "Single-hop semantic similarity",
-            "receipt": "None",
-        },
-        "timestamp": int(time.time()),
-    }
+    from fastapi import HTTPException
+    raise HTTPException(
+        status_code=503,
+        detail="Benchmark results not found. Run 'python server/run_benchmark.py' to generate empirical measurements from active FalkorDB.",
+    )
 

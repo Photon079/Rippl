@@ -100,8 +100,8 @@ def get_all_nodes_and_edges() -> Dict[str, List[Dict[str, Any]]]:
     _init_db()
     g = get_graph()
 
-    # Query all nodes
-    nodes_cypher = "MATCH (n) RETURN coalesce(n.id, toString(id(n))) AS id, labels(n)[0] AS label, properties(n) AS properties"
+    # Query all causal nodes (excluding metadata ReviewItems)
+    nodes_cypher = "MATCH (n) WHERE NOT n:ReviewItem RETURN coalesce(n.id, toString(id(n))) AS id, labels(n)[0] AS label, properties(n) AS properties"
     try:
         nodes_res = g.ro_query(nodes_cypher)
     except ResponseError as e:
@@ -122,9 +122,9 @@ def get_all_nodes_and_edges() -> Dict[str, List[Dict[str, Any]]]:
                 "properties": props,
             })
 
-    # Query all directed causal relationships
+    # Query all directed causal relationships (excluding ReviewItem edges)
     edges_cypher = (
-        "MATCH (s)-[r]->(t) "
+        "MATCH (s)-[r]->(t) WHERE NOT s:ReviewItem AND NOT t:ReviewItem "
         "RETURN coalesce(s.id, toString(id(s))) AS source_id, "
         "       type(r) AS rel_type, "
         "       properties(r) AS properties, "
