@@ -127,7 +127,7 @@ RETURN downstream.id AS id;
 ### Native FalkorDB Persistence: Graph & Review Queue
 All state in Rippl is persisted natively inside FalkorDB:
 1. **113 Load-Bearing Causal Nodes:** 15 Sources, 30 Claims, 35 Decisions, 23 Actions, and 10 Stakeholder Agents.
-2. **Human-in-the-Loop Review Queue (`:ReviewItem`):** Triage items are NOT held in ephemeral Python memory. Review items are persisted as native `(:ReviewItem)` nodes linked via `(:Claim)-[:HAS_REVIEW]->(:ReviewItem)`. When an operator proposes a retraction, the review item is merged into FalkorDB with a cryptographic SHA-256 receipt; when approved or rejected, its status is updated directly via Cypher. The review state survives backend restarts.
+2. **Human-in-the-Loop Review Queue (`:ReviewItem`):** Triage items are NOT held in ephemeral Python memory. Review items are persisted as native `(:ReviewItem)` nodes linked via `(:Claim)-[:HAS_REVIEW]->(:ReviewItem)`. When an operator proposes a retraction, the review item is merged into FalkorDB with a SHA-256 hash receipt; when approved or rejected, its status is updated directly via Cypher. The review state survives backend restarts.
 
 ---
 
