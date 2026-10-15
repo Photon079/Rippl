@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "rippl-causal-memory": {
+      "command": "python",
+      "args": ["server/mcp_server.py"],
+      "env": {
+        "FALKORDB_HOST": "localhost",
+        "FALKORDB_PORT": "6379",
+        "FALKORDB_GRAPH": "rippl_memory"
+      },
+      "tools": [
+        "database_schema",
+        "check_premises",
+        "retract_claim",
+        "why"
+      ]
+    }
+  }
+}

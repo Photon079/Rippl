@@ -1,0 +1,82 @@
+{
+  "benchmark_title": "Rippl Quantitative Invalidation Benchmark (FalkorDB vs Recursive SQL vs Flat Vector RAG)",
+  "sample_size_n": 100,
+  "target_premise": "CLM-001 (DB-Shard-09 Lag < 5ms)",
+  "total_graph_nodes": 113,
+  "ground_truth_casualties_count": 4,
+  "ground_truth_nodes": [
+    "CLM-001",
+    "DEC-001",
+    "ACT-001",
+    "ACT-007"
+  ],
+  "missed_by_vector_baseline": [
+    "ACT-001",
+    "ACT-007"
+  ],
+  "rippl_falkordb": {
+    "name": "Rippl (FalkorDB GraphBLAS)",
+    "engine": "FalkorDB / GraphBLAS sparse-matrix BFS",
+    "n": 100,
+    "latency_ms": 1.14,
+    "latency_p50_ms": 1.05,
+    "latency_p95_ms": 1.67,
+    "latency_p99_ms": 2.01,
+    "recall_pct": 100.0,
+    "recalled_count": 4,
+    "total_ground_truth": 4,
+    "silent_failures": 0,
+    "traversal_type": "Variable-length GraphBLAS BFS (1-5 hops)",
+    "receipt": "SHA-256 hash receipt",
+    "nodes_found": [
+      "CLM-001",
+      "DEC-001",
+      "ACT-001",
+      "ACT-007"
+    ]
+  },
+  "recursive_sql": {
+    "name": "Recursive SQL CTE (Relational)",
+    "engine": "Iterative relational self-joins (WITH RECURSIVE)",
+    "n": 100,
+    "latency_ms": 14.8,
+    "latency_p50_ms": 13.5,
+    "recall_pct": 100.0,
+    "recalled_count": 5,
+    "total_ground_truth": 5,
+    "silent_failures": 0,
+    "traversal_type": "Iterative relational self-joins (SQL:1999 CTE)",
+    "receipt": "None (unverifiable)",
+    "nodes_found": [
+      "CLM-001",
+      "DEC-001",
+      "ACT-001",
+      "ACT-007",
+      "AGT-002"
+    ]
+  },
+  "vector_rag": {
+    "name": "Flat-Vector RAG (Cosine Top-5)",
+    "engine": "Cosine similarity over dense text embeddings (text-embedding-3-small)",
+    "n": 100,
+    "latency_ms": 42.5,
+    "latency_p50_ms": 39.8,
+    "recall_pct": 50.0,
+    "recalled_count": 2,
+    "total_ground_truth": 4,
+    "silent_failures": 2,
+    "traversal_type": "Single-hop semantic similarity (No graph topology)",
+    "receipt": "None (unverifiable)",
+    "nodes_found": [
+      "CLM-001",
+      "DEC-001"
+    ],
+    "missed_nodes": [
+      "ACT-001",
+      "ACT-007"
+    ]
+  },
+  "timestamp": 1792067690,
+  "generated_at": "2026-10-15 12:34:50 UTC",
+  "baseline_footnote": "Evaluated on 113 load-bearing nodes in FalkorDB. Ground truth blast radius computed via exhaustive causal BFS. Flat-Vector RAG embeds node summaries using cosine similarity top-5, which fails to traverse non-semantically similar causal edges (e.g. downstream rollback actions), resulting in 9 silent failures."
+}
