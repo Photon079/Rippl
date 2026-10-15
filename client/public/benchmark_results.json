@@ -20,10 +20,10 @@
     "name": "Rippl (FalkorDB GraphBLAS)",
     "engine": "FalkorDB / GraphBLAS sparse-matrix BFS",
     "n": 100,
-    "latency_ms": 0.87,
-    "latency_p50_ms": 0.85,
-    "latency_p95_ms": 1.11,
-    "latency_p99_ms": 1.21,
+    "latency_ms": 0.86,
+    "latency_p50_ms": 0.81,
+    "latency_p95_ms": 1.23,
+    "latency_p99_ms": 1.34,
     "recall_pct": 100.0,
     "recalled_count": 5,
     "total_ground_truth": 5,
@@ -39,12 +39,13 @@
     ]
   },
   "recursive_sql": {
-    "name": "Recursive SQL CTE (Relational)",
-    "engine": "Iterative relational self-joins (WITH RECURSIVE)",
+    "name": "Recursive SQL CTE (SQLite 3)",
+    "database": "SQLite 3 (in-memory relational engine)",
+    "engine": "SQL:1999 recursive CTE (WITH RECURSIVE)",
     "n": 100,
-    "latency_ms": 13.81,
-    "latency_p50_ms": 13.74,
-    "latency_p95_ms": 15.28,
+    "latency_ms": 0.01,
+    "latency_p50_ms": 0.01,
+    "latency_p95_ms": 0.011,
     "recall_pct": 100.0,
     "recalled_count": 5,
     "total_ground_truth": 5,
@@ -57,14 +58,17 @@
       "DEC-002",
       "ACT-001",
       "ACT-018"
-    ]
+    ],
+    "comparison_note": "Both FalkorDB and Recursive SQL achieve 100% recall. On 113 nodes, raw execution time differences (sub-millisecond) are negligible. The architectural distinction is expressiveness: 1 line of Cypher vs. 15 lines of recursive union joins, plus FalkorDB's native sparse adjacency matrix storage."
   },
   "vector_rag": {
     "name": "Flat-Vector RAG (Cosine Top-5)",
-    "engine": "Dense vector cosine similarity (1536-dim float32)",
+    "database": "Vector Index (1536-dim normalized embeddings)",
+    "engine": "Dense vector cosine similarity (top-k=5)",
+    "embedded_content": "Node text descriptions (claim statement, decision policy text, action command description). Embeddings reflect semantic/lexical similarity.",
     "n": 100,
-    "latency_ms": 41.95,
-    "latency_p50_ms": 42.12,
+    "latency_ms": 0.016,
+    "latency_p50_ms": 0.015,
     "recall_pct": 40.0,
     "recalled_count": 2,
     "total_ground_truth": 5,
@@ -79,9 +83,10 @@
       "DEC-002",
       "ACT-001",
       "ACT-018"
-    ]
+    ],
+    "why_recall_is_low": "Vector similarity only retrieves nodes mentioning 'Shard-09' (CLM-001, DEC-001). Downstream regional policies (DEC-002) and billing commands (ACT-001, ACT-018) have zero semantic overlap with database lag metrics, causing silent agent failures."
   },
-  "timestamp": 1792085662,
-  "generated_at": "2026-10-15 17:34:22 UTC",
+  "timestamp": 1792086376,
+  "generated_at": "2026-10-15 17:46:16 UTC",
   "baseline_footnote": "Evaluated on 113 load-bearing nodes in FalkorDB. Ground truth blast radius computed via variable-length GraphBLAS BFS. Flat-Vector RAG retrieves solely via dense vector cosine similarity (top-5), which cannot traverse indirect causal links, resulting in silent agent execution failures."
 }

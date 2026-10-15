@@ -178,21 +178,35 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 Evaluated over $n=100$ independent live runs traversing 113 load-bearing nodes in FalkorDB vs. relational and vector baselines. Raw committed data is available in [`client/public/benchmark_results.json`](client/public/benchmark_results.json).
 
-| Architecture Engine | Invalidation Recall | P50 Latency | Mean Latency | Silent Failures | Verifiable Receipt |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| **Rippl (FalkorDB GraphBLAS)** | **100.0%** | **0.85 ms** | **0.87 ms** | **0** | **SHA-256 Hash Receipt** |
-| Recursive SQL CTE (Relational) | 100.0% | 13.86 ms | 13.81 ms | 0 | None (Unverifiable) |
-| Flat-Vector RAG (Cosine Top-5) | 40.0% | 41.80 ms | 41.95 ms | 3 | None (Unverifiable) |
+| Architecture Engine | Database / Storage | Invalidation Recall | Query Latency | Silent Failures | Verifiable Receipt |
+| :--- | :--- | :---: | :---: | :---: | :---: |
+| **Rippl (FalkorDB)** | FalkorDB (Sparse Adjacency Matrices) | **100.0%** | **0.86 ms** | **0** | **SHA-256 Hash Receipt** |
+| Recursive SQL CTE | SQLite 3 (In-memory Relational Engine) | 100.0% | 0.01 ms | 0 | None (Unverifiable) |
+| Flat-Vector RAG | Vector Index (1536-dim Node Text Embeddings) | 40.0% | 0.02 ms | 3 | None (Unverifiable) |
 
-### Why Flat-Vector RAG Fails (Silent Failures)
-Flat-vector embeddings retrieve solely by semantic similarity. When foundational claim `CLM-001` (*"Shard-09 replication lag < 5ms"*) is retracted, downstream action `ACT-001` (*"Route Northwind Billing Traffic to Shard-09"*) shares zero lexical or semantic similarity with database lag metrics. Vector search misses it completely, causing silent agent hallucinations. FalkorDB traverses structural causal edges directly via sparse-matrix multiplication in sub-millisecond latency with 100% recall.
+### Honest Architectural Analysis: FalkorDB vs. SQL CTE
+Both FalkorDB and Recursive SQL CTE achieve **100% recall** on the 113-node causal graph, executing in **sub-millisecond** time. On a 113-node graph, raw query execution speed differences are negligible in practice. 
+
+The honest architectural advantages of FalkorDB are **query expressiveness, traversal ergonomics, and native graph representation**:
+1. **Query Expressiveness:** In Cypher, variable-length heterogeneous causal dependencies are expressed in a single, readable line:
+   ```cypher
+   MATCH path = (c:Claim {id: $id})-[:SUPPORTS|DEPENDS_ON|DRIVES|TRIGGERS*1..5]->(downstream)
+   RETURN downstream.id, downstream.status;
+   ```
+   In relational SQL, the equivalent traversal requires a 15-line `WITH RECURSIVE` CTE definition with recursive self-joins, `UNION ALL`, manual depth counters, and cycle guardrails.
+2. **First-Class Graph Data Structure:** FalkorDB stores the graph directly as sparse adjacency matrices using GraphBLAS primitives, treating relationships as first-class entities rather than flattening them across foreign-key join tables.
+3. **Audit Verification:** FalkorDB invalidations generate verifiable SHA-256 hash receipts recording the exact causal blast radius.
+
+### What the Vector Baseline Embeds & Why It Fails
+- **Embedded Content:** The vector baseline embeds each node's text attribute (`node.text`: the claim statement, decision policy description, or action command text) into 1536-dimensional normalized vectors (representing `text-embedding-3-small`).
+- **Why Recall is 40% (3 Silent Failures):** When querying for dependencies of foundational claim `CLM-001` (*"Shard-09 metrics: write throughput 12.3%, latency p99 < 8ms"*), vector cosine search retrieves `CLM-001` and `DEC-001` because their descriptions mention *Shard-09*. However, downstream regional routing policies (`DEC-002`) and execution commands (`ACT-001`: *"Route Northwind Billing Traffic to Shard-09"*, `ACT-018`: *"Trigger failover standby container orchestrator"*) share zero lexical or semantic similarity with database lag metrics. Vector search misses them completely, causing silent agent hallucinations.
 
 ### Reproducing the Benchmark
 ```bash
 cd server
 python run_benchmark.py
 ```
-This executes 100 live cycles of FalkorDB BFS traversal, relational joins, and cosine similarity top-5 ranking, writing output metrics directly to `client/public/benchmark_results.json`.
+This executes 100 live iterations of FalkorDB variable-length traversal, SQLite 3 recursive CTE joins, and cosine similarity top-5 ranking, writing output metrics directly to `client/public/benchmark_results.json`.
 
 ---
 

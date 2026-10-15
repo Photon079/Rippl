@@ -105,9 +105,9 @@ export default function AblationLab() {
             {/* Bar 2: Recursive SQL CTE */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <span className="font-bold text-cyan-300">Recursive SQL CTE (PostgreSQL / SQLite)</span>
+                <span className="font-bold text-cyan-300">Recursive SQL CTE (SQLite 3)</span>
                 <span className="font-bold text-cyan-300">
-                  {sql?.recall_pct ?? 100.0}% ({sql?.recalled_count ?? 4}/{sql?.total_ground_truth ?? 4} nodes)
+                  {sql?.recall_pct ?? 100.0}% ({sql?.recalled_count ?? 5}/{sql?.total_ground_truth ?? 5} nodes)
                 </span>
               </div>
               <div className="w-full h-3 rounded-full bg-white/[0.05] overflow-hidden">
@@ -123,13 +123,13 @@ export default function AblationLab() {
               <div className="flex items-center justify-between">
                 <span className="font-bold text-rose-400">Flat-Vector RAG Baseline (Cosine Top-5)</span>
                 <span className="font-bold text-rose-400">
-                  {vector?.recall_pct ?? 50.0}% ({vector?.recalled_count ?? 2}/{vector?.total_ground_truth ?? 4} nodes)
+                  {vector?.recall_pct ?? 40.0}% ({vector?.recalled_count ?? 2}/{vector?.total_ground_truth ?? 5} nodes)
                 </span>
               </div>
               <div className="w-full h-3 rounded-full bg-white/[0.05] overflow-hidden">
                 <div
                   className="h-full bg-rose-500 rounded-full transition-all duration-500 shadow-[0_0_12px_rgba(244,63,94,0.4)]"
-                  style={{ width: `${vector?.recall_pct ?? 50}%` }}
+                  style={{ width: `${vector?.recall_pct ?? 40}%` }}
                 />
               </div>
             </div>
@@ -149,7 +149,7 @@ export default function AblationLab() {
           </div>
 
           <p className="text-xs text-slate-400 leading-relaxed">
-            Vector similarity only catches semantically proximate nodes. Multi-hop downstream action nodes have zero semantic overlap with telemetry premises, creating invisible zombie actions.
+            Vector similarity compares node text embeddings (claim statements, decision policies, and action command descriptions). Downstream regional policies and execution actions share zero lexical or semantic overlap with database lag metrics, creating silent agent failures.
           </p>
 
           <div className="p-4 rounded-xl bg-black/40 border border-white/[0.06] flex flex-wrap items-center justify-center gap-3 font-mono text-xs">
@@ -169,17 +169,17 @@ export default function AblationLab() {
 
             <span className="text-rose-500 font-bold">&ndash;&times;&ndash;</span>
 
-            {/* Node 3: Action 1 (Missed) */}
+            {/* Node 3: Decision 2 (Missed) */}
             <div className="px-3 py-2 rounded-lg bg-rose-950/30 border-2 border-dashed border-rose-500/70 text-rose-300 text-center shadow-[0_0_12px_rgba(244,63,94,0.3)]">
-              <span className="block font-bold">ACT-001</span>
+              <span className="block font-bold">DEC-002</span>
               <span className="text-[10px] text-rose-400 font-bold uppercase">MISSED BY RAG</span>
             </div>
 
             <span className="text-rose-500 font-bold">&ndash;&times;&ndash;</span>
 
-            {/* Node 4: Action 2 (Missed) */}
+            {/* Node 4: Action 1 (Missed) */}
             <div className="px-3 py-2 rounded-lg bg-rose-950/30 border-2 border-dashed border-rose-500/70 text-rose-300 text-center shadow-[0_0_12px_rgba(244,63,94,0.3)]">
-              <span className="block font-bold">ACT-007</span>
+              <span className="block font-bold">ACT-001</span>
               <span className="text-[10px] text-rose-400 font-bold uppercase">MISSED BY RAG</span>
             </div>
           </div>
@@ -193,26 +193,26 @@ export default function AblationLab() {
               <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
                 <span className="text-xs font-mono font-bold text-rose-400">Flat-Vector RAG</span>
                 <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-rose-500/10 text-rose-300">
-                  Baseline
+                  Cosine Top-5
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-                Single-hop semantic similarity. Cannot follow multi-hop causal pointers.
+                Embeds node text descriptions. Fails to bridge semantic disconnect between low-level database metrics and downstream execution actions.
               </p>
             </div>
 
             <div className="space-y-2 font-mono text-xs pt-2 border-t border-white/[0.06]">
               <div className="flex justify-between py-1 border-b border-white/[0.04]">
                 <span className="text-slate-500">Recall Rate:</span>
-                <span className="text-rose-400 font-bold">{vector?.recall_pct ?? 50.0}%</span>
+                <span className="text-rose-400 font-bold">{vector?.recall_pct ?? 40.0}%</span>
               </div>
               <div className="flex justify-between py-1 border-b border-white/[0.04]">
                 <span className="text-slate-500">Latency:</span>
-                <span className="text-slate-300 font-bold">{vector?.latency_ms ?? 42.5} ms</span>
+                <span className="text-slate-300 font-bold">{vector?.latency_ms ?? 0.016} ms</span>
               </div>
               <div className="flex justify-between py-1 border-b border-white/[0.04]">
                 <span className="text-slate-500">Silent Failures:</span>
-                <span className="text-rose-400 font-bold">{vector?.silent_failures ?? 2} actions</span>
+                <span className="text-rose-400 font-bold">{vector?.silent_failures ?? 3} actions</span>
               </div>
               <div className="flex justify-between py-1">
                 <span className="text-slate-500">Receipt Proof:</span>
@@ -227,11 +227,11 @@ export default function AblationLab() {
               <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
                 <span className="text-xs font-mono font-bold text-cyan-300">Recursive SQL CTE</span>
                 <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-300">
-                  Relational
+                  SQLite 3
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-                WITH RECURSIVE self-joins over relational edge tables. Exhaustive but slower.
+                WITH RECURSIVE in SQLite 3. Reaches 100% recall, but requires a verbose 15-line SQL query with manual recursion limits vs. 1 line of Cypher.
               </p>
             </div>
 
@@ -242,7 +242,7 @@ export default function AblationLab() {
               </div>
               <div className="flex justify-between py-1 border-b border-white/[0.04]">
                 <span className="text-slate-500">Latency:</span>
-                <span className="text-slate-300 font-bold">{sql?.latency_ms ?? 14.8} ms</span>
+                <span className="text-slate-300 font-bold">{sql?.latency_ms ?? 0.01} ms</span>
               </div>
               <div className="flex justify-between py-1 border-b border-white/[0.04]">
                 <span className="text-slate-500">Silent Failures:</span>
@@ -265,7 +265,7 @@ export default function AblationLab() {
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-                Native sparse-matrix linear algebra traversal. 1.14ms multi-hop blast radius.
+                Stores the graph as sparse adjacency matrices. Concise 1-line variable-length Cypher traversal with hash receipts.
               </p>
             </div>
 
@@ -276,7 +276,7 @@ export default function AblationLab() {
               </div>
               <div className="flex justify-between py-1 border-b border-white/[0.04]">
                 <span className="text-slate-500">Latency:</span>
-                <span className="text-emerald-400 font-bold">{falkor?.latency_ms ?? 1.14} ms</span>
+                <span className="text-emerald-400 font-bold">{falkor?.latency_ms ?? 0.86} ms</span>
               </div>
               <div className="flex justify-between py-1 border-b border-white/[0.04]">
                 <span className="text-slate-500">Silent Failures:</span>
@@ -296,7 +296,7 @@ export default function AblationLab() {
           <div>
             <strong className="text-slate-300">Baseline Methodology Footnote: </strong>
             {data?.baseline_footnote ||
-              "Evaluated on 113 load-bearing nodes in FalkorDB. Ground truth blast radius computed via exhaustive causal BFS. Flat-Vector RAG embeds node summaries using cosine similarity top-5, which fails to traverse non-semantically similar causal edges (e.g. downstream rollback actions), resulting in silent failures."}
+              "Evaluated on 113 load-bearing nodes in FalkorDB vs. SQLite 3 (in-memory) and Dense Vector Cosine Similarity (top-5). Both FalkorDB and SQLite CTE achieve 100% recall. On 113 nodes, raw query execution speed differences (sub-millisecond) are negligible in practice. The architectural advantage of FalkorDB is query expressiveness (1 line of Cypher vs. 15 lines of recursive SQL) and sparse adjacency matrix representations. Flat-Vector RAG embeds node text descriptions, which misses downstream routing and execution actions that share no lexical or semantic overlap with database lag metrics, creating 3 silent agent failures."}
           </div>
         </div>
       </div>
