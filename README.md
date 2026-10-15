@@ -135,19 +135,19 @@ All state in Rippl is persisted natively inside FalkorDB:
 
 To maintain absolute transparency with hackathon organizers and adhere strictly to Rule 8 (Eligibility & Work Timelines) and Rule 17 (Authenticity of Records):
 
-### Pre-Hackathon Conceptual Exploration (Prior to Oct 15, 12:01 AM IST):
-- Initial product concept and problem definition: causal invalidation vs. flat-vector RAG limitations.
-- Early visual wireframe mockups and exploratory prototype designs drafted on Oct 13.
-- Preliminary domain scenario drafting (Northwind DB Shard-09 replication lag telemetry).
+### Pre-Kickoff Prototype (Built on Oct 13, 2026):
+> *"On Oct 13, before kickoff, I built a working prototype of Rippl: a FastAPI plus Next.js app with a 22-node seed graph, a cascade engine, an MCP premise check, a review queue and an ablation page."*
 
-### Built During the FalkorDB Hackathon (After Oct 15, 12:01 AM IST Kickoff):
-- **Live FalkorDB Ingestion & Schema:** Native ingestion scripts (`seed.py` / `seed_pep.py`) creating the 113-node causal schema with GraphBLAS-optimized relationship types (`STATES`, `SUPPORTS`, `DEPENDS_ON`, `DRIVES`, `TRIGGERS`).
-- **GraphBLAS BFS Invalidation Engine:** Production Cypher traversal engine executing variable-length paths (`*1..5`) and atomic status cascades.
-- **FalkorDB-Persisted Review System:** Cypher-backed `:ReviewItem` queue with SHA-256 audit receipts replacing in-memory mocks.
-- **MCP Agent Gate & Real-time Interceptor:** FastAPI pre-flight validation endpoint (`/api/mcp/pre-flight-check`) blocking compromised agent tool actions in sub-millisecond latency.
-- **Quantitative Empirical Benchmark Harness:** `server/run_benchmark.py` running 100 live iterations comparing FalkorDB GraphBLAS, Recursive SQL CTE (SQLite/PostgreSQL schema), and 1536-dim Flat Vector Cosine RAG to capture real system execution times.
-- **Production Developer Console:** Next.js 15 UI with Dagre LR layered layout, slide-out node drawer, real-time WebSocket retraction broadcasts, and elimination of all mock fallbacks.
-- **Repository Provenance:** Real, unmanipulated system commit history.
+### Rebuilt on FalkorDB Post-Kickoff (After Oct 15, 12:01 AM IST):
+> *"After kickoff I started a new repository and rebuilt the core on FalkorDB: the Cypher ingestion, the 113-node schema, the variable-length cascade, a FalkorDB-persisted review queue, the pre-flight gate and a live benchmark harness. I’ve listed both phases in the README."*
+
+- **FalkorDB Native Ingestion & Schema:** Native ingestion scripts (`seed_pep.py`) creating the 113-node causal schema with GraphBLAS-optimized relationship types (`STATES`, `SUPPORTS`, `DEPENDS_ON`, `DRIVES`, `TRIGGERS`).
+- **Variable-Length Traversal Cascade:** Cypher traversal engine executing variable-length paths (`*1..5`) and atomic status cascades.
+- **FalkorDB-Persisted Review Queue:** Native `:ReviewItem` nodes linked via `(:Claim)-[:HAS_REVIEW]->(:ReviewItem)` in the graph with SHA-256 hash receipts, surviving server restarts.
+- **MCP Pre-Flight Interceptor Gate:** FastAPI pre-flight validation endpoint (`/api/mcp/pre-flight-check`) blocking compromised agent tool actions in sub-millisecond latency.
+- **Empirical Benchmark Suite:** `server/run_benchmark.py` running 100 live iterations on active FalkorDB vs. SQLite 3 recursive CTE and 1536-dim vector cosine similarity.
+- **Production UI:** Next.js 15 UI with Dagre LR layered layout, slide-out node drawer, real-time WebSocket retraction broadcasts, and elimination of all mock fallbacks.
+- **Commit History:** Natural, unmanipulated system commit history.
 
 ---
 
