@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg)](LICENSE)
 [![FalkorDB](https://img.shields.io/badge/Graph_Engine-FalkorDB_GraphBLAS-blue.svg)](https://falkordb.com)
-[![Next.js](https://img.shields.io/badge/Frontend-Next.js_15_Turbopack-zinc.svg)](https://nextjs.org)
+[![Next.js](https://img.shields.io/badge/Frontend-Next.js_16_(v16.4.0)-zinc.svg)](https://nextjs.org)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI_Python_3.11-teal.svg)](https://fastapi.tiangolo.com)
 [![Benchmark](https://img.shields.io/badge/Empirical_Recall-100%25_(n%3D100)-emerald.svg)](client/public/benchmark_results.json)
 
@@ -146,8 +146,8 @@ To maintain absolute transparency with hackathon organizers and adhere strictly 
 - **FalkorDB-Persisted Review Queue:** Native `:ReviewItem` nodes linked via `(:Claim)-[:HAS_REVIEW]->(:ReviewItem)` in the graph with SHA-256 hash receipts, surviving server restarts.
 - **MCP Pre-Flight Interceptor Gate:** FastAPI pre-flight validation endpoint (`/api/mcp/pre-flight-check`) blocking compromised agent tool actions in sub-millisecond latency.
 - **Empirical Benchmark Suite:** `server/run_benchmark.py` running 100 live iterations on active FalkorDB vs. SQLite 3 recursive CTE and 1536-dim vector cosine similarity.
-- **Production UI:** Next.js 15 UI with Dagre LR layered layout, slide-out node drawer, real-time WebSocket retraction broadcasts, and elimination of all mock fallbacks.
-- **Commit History:** Natural, unmanipulated system commit history.
+- **Production UI:** Next.js 16 (v16.4.0 with Turbopack) with Dagre LR layered layout, slide-out node drawer, real-time WebSocket retraction broadcasts, and elimination of all mock fallbacks.
+- **Commit History:** History was rewritten once on Oct 15 at 11:21 PM IST to remove hand-set commit dates, so commit times reflect that rewrite, not when the work was done.
 
 ---
 
@@ -174,18 +174,18 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
-## 7. Empirical Ablation Benchmarks ($n=100$)
+## 7. Empirical Ablation Benchmarks
 
-Evaluated over $n=100$ independent live runs traversing 113 load-bearing nodes in FalkorDB vs. relational and vector baselines. Raw committed data is available in [`client/public/benchmark_results.json`](client/public/benchmark_results.json).
+Evaluated across **all 30 claims** in the 113-node causal graph against ground-truth causal sets authored in [`server/seed_pep.py`](server/seed_pep.py). Timing metrics are averaged over 100 live iterations of the standard `CLM-001` blast radius. Raw committed data is available in [`client/public/benchmark_results.json`](client/public/benchmark_results.json).
 
-| Architecture Engine | Database / Storage | Invalidation Recall | Query Latency | Silent Failures | Verifiable Receipt |
-| :--- | :--- | :---: | :---: | :---: | :---: |
-| **Rippl (FalkorDB)** | FalkorDB (Sparse Adjacency Matrices) | **100.0%** | **0.86 ms** | **0** | **SHA-256 Hash Receipt** |
-| Recursive SQL CTE | SQLite 3 (In-memory Relational Engine) | 100.0% | 0.01 ms | 0 | None (Unverifiable) |
-| Flat-Vector RAG | Vector Index (1536-dim Node Text Embeddings) | 40.0% | 0.02 ms | 3 | None (Unverifiable) |
+| Architecture Engine | Database / Storage | Execution Protocol | Macro-Avg Recall (All 30 Claims) | Query Timing (100 runs) | Silent Failures (CLM-001) | Verifiable Receipt |
+| :--- | :--- | :--- | :---: | :---: | :---: | :---: |
+| **Rippl (FalkorDB)** | FalkorDB (Sparse Adjacency Matrices) | **client-server** (TCP socket, localhost:6380) | **100.0%** | **0.93 ms** | **0** | **SHA-256 Hash Receipt** |
+| Recursive SQL CTE | SQLite 3 (In-memory Relational Engine) | **in-process** (direct memory execution) | 100.0% | 0.01 ms | 0 | None (Unverifiable) |
+| Flat-Vector RAG | Dense Vector Index (BAAI/bge-small-en-v1.5) | **in-process** (local 384-dim vector index) | 45.4% | 0.01 ms | 4 | None (Unverifiable) |
 
 ### Honest Architectural Analysis: FalkorDB vs. SQL CTE
-Both FalkorDB and Recursive SQL CTE achieve **100% recall** on the 113-node causal graph, executing in **sub-millisecond** time. On a 113-node graph, raw query execution speed differences are negligible in practice. 
+Both FalkorDB and Recursive SQL CTE achieve **100.0% recall** across all 30 claims in the graph, executing in **sub-millisecond** time. On a 113-node graph, raw query execution speed differences are negligible in practice. Most of the 0.85ms latency gap between FalkorDB and SQLite is the client-server network socket round-trip of FalkorDB compared to in-process memory execution of SQLite.
 
 The honest architectural advantages of FalkorDB are **query expressiveness, traversal ergonomics, and native graph representation**:
 1. **Query Expressiveness:** In Cypher, variable-length heterogeneous causal dependencies are expressed in a single, readable line:
@@ -193,20 +193,20 @@ The honest architectural advantages of FalkorDB are **query expressiveness, trav
    MATCH path = (c:Claim {id: $id})-[:SUPPORTS|DEPENDS_ON|DRIVES|TRIGGERS*1..5]->(downstream)
    RETURN downstream.id, downstream.status;
    ```
-   In relational SQL, the equivalent traversal requires a 15-line `WITH RECURSIVE` CTE definition with recursive self-joins, `UNION ALL`, manual depth counters, and cycle guardrails.
+   In relational SQL, the equivalent traversal requires a 15-line `WITH RECURSIVE` CTE query on the edges table with recursive self-joins, `UNION ALL`, manual depth counters, and cycle guardrails.
 2. **First-Class Graph Data Structure:** FalkorDB stores the graph directly as sparse adjacency matrices using GraphBLAS primitives, treating relationships as first-class entities rather than flattening them across foreign-key join tables.
 3. **Audit Verification:** FalkorDB invalidations generate verifiable SHA-256 hash receipts recording the exact causal blast radius.
 
-### What the Vector Baseline Embeds & Why It Fails
-- **Embedded Content:** The vector baseline embeds each node's text attribute (`node.text`: the claim statement, decision policy description, or action command text) into 1536-dimensional normalized vectors (representing `text-embedding-3-small`).
-- **Why Recall is 40% (3 Silent Failures):** When querying for dependencies of foundational claim `CLM-001` (*"Shard-09 metrics: write throughput 12.3%, latency p99 < 8ms"*), vector cosine search retrieves `CLM-001` and `DEC-001` because their descriptions mention *Shard-09*. However, downstream regional routing policies (`DEC-002`) and execution commands (`ACT-001`: *"Route Northwind Billing Traffic to Shard-09"*, `ACT-018`: *"Trigger failover standby container orchestrator"*) share zero lexical or semantic similarity with database lag metrics. Vector search misses them completely, causing silent agent hallucinations.
+### Real Vector Embedding Methodology (BAAI/bge-small-en-v1.5)
+- **Model & Embedded Content:** Uses real `BAAI/bge-small-en-v1.5` embeddings (384-dimensional normalized float32 vectors generated via the ONNX runtime with `fastembed`). Embeddings encode node text descriptions (`node.text`: claim statements, decision policy descriptions, and action command descriptions).
+- **Why Recall is 45.4% (Silent Failures):** Ground truth causal blast radiuses are defined by the causal edges in `seed_pep.py`. In `CLM-001` (*"Shard-09 metrics: write throughput 12.3%, latency p99 < 8ms"*), vector cosine search retrieves only the root claim itself, missing `DEC-001`, `DEC-002`, `ACT-001`, and `ACT-018`. Downstream regional routing policies and execution actions share zero lexical or semantic similarity with database lag metrics, causing flat-vector RAG to miss them completely and produce silent agent failures. Across all 30 claims, vector search achieves an average recall of only 45.4%.
 
 ### Reproducing the Benchmark
 ```bash
 cd server
 python run_benchmark.py
 ```
-This executes 100 live iterations of FalkorDB variable-length traversal, SQLite 3 recursive CTE joins, and cosine similarity top-5 ranking, writing output metrics directly to `client/public/benchmark_results.json`.
+This executes live variable-length Cypher traversals on active FalkorDB, SQLite 3 recursive CTE joins, and real BGE embedding similarity searches across all 30 claims, writing output metrics directly to `client/public/benchmark_results.json`.
 
 ---
 
