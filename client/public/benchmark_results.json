@@ -1,6 +1,6 @@
 {
   "benchmark_title": "Rippl Quantitative Invalidation Benchmark (FalkorDB vs Recursive SQL vs Flat Vector RAG)",
-  "evaluation_scope": "All 30 claims evaluated against ground-truth causal sets authored in seed_pep.py",
+  "evaluation_scope": "All 30 claims evaluated against ground-truth causal sets authored in seed_northwind.py",
   "sample_size_timing_runs": 100,
   "total_graph_nodes": 113,
   "embedding_model": "BAAI/bge-small-en-v1.5 (384-dim, ONNX runtime via fastembed)",
@@ -87,5 +87,5 @@
   },
   "timestamp": 1792087101,
   "generated_at": "2026-10-15 17:58:21 UTC",
-  "baseline_footnote": "Evaluated across all 30 claims in the 113-node causal graph. Ground truth blast radius is computed from the causal edges authored in seed_pep.py. Both FalkorDB and SQLite CTE achieve 100.0% recall in sub-millisecond execution. Most of the 0.85ms latency gap reflects client-server network socket overhead of FalkorDB compared to in-process execution of SQLite. Flat-Vector RAG uses real BAAI/bge-small-en-v1.5 embeddings of node text, achieving 45.4% macro-average recall because downstream operational policies and execution actions share zero lexical or semantic similarity with low-level database metrics."
+  "baseline_footnote": "Evaluated across all 30 claims in the 113-node causal graph. Ground truth blast radius is computed from the causal edges authored in seed_northwind.py. Both FalkorDB and SQLite CTE achieve 100.0% recall in sub-millisecond execution. Most of the 0.85ms latency gap reflects client-server network socket overhead of FalkorDB compared to in-process execution of SQLite. Flat-Vector RAG uses real BAAI/bge-small-en-v1.5 embeddings of node text, achieving 45.4% macro-average recall because downstream operational policies and execution actions share zero lexical or semantic similarity with low-level database metrics."
 }

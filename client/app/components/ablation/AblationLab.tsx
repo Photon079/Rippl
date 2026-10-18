@@ -82,7 +82,7 @@ export default function AblationLab() {
               <BarChart3 size={15} className="text-cyan-400" />
               <span>Macro-Average Invalidation Recall across All 30 Claims</span>
             </div>
-            <span className="text-xs font-mono text-slate-400">Ground truth: seed_pep.py causal edges</span>
+            <span className="text-xs font-mono text-slate-400">Ground truth: Northwind causal edges (seed_northwind.py)</span>
           </div>
 
           <div className="space-y-4 pt-1 font-mono text-xs">
@@ -149,7 +149,7 @@ export default function AblationLab() {
           </div>
 
           <p className="text-xs text-slate-400 leading-relaxed">
-            Real BAAI/bge-small-en-v1.5 embeddings compare semantic overlap of node texts. Ground truth blast radius is derived from the causal edges authored in seed_pep.py. Downstream regional routing policies (DEC-002) and execution actions (ACT-001, ACT-018) share zero semantic overlap with database lag metrics, creating silent failures.
+            Real BAAI/bge-small-en-v1.5 embeddings compare semantic overlap of node texts. Ground truth blast radius is derived from the causal edges authored in Northwind infrastructure scenario (seed_northwind.py). Downstream regional routing policies (DEC-002) and execution actions (ACT-001, ACT-018) share zero semantic overlap with database lag metrics, creating silent failures.
           </p>
 
           <div className="p-4 rounded-xl bg-black/40 border border-white/[0.06] flex flex-wrap items-center justify-center gap-3 font-mono text-xs">

@@ -1,9 +1,9 @@
 """
 Unified Seed script for Rippl.
-Seeds FalkorDB with full-scale PEP + Northwind Enterprise graph (110+ nodes).
+Seeds FalkorDB with full-scale Northwind Enterprise infrastructure graph (113 nodes).
 """
 
-from seed_pep import seed_pep_and_enterprise_graph
+from seed_northwind import seed_pep_and_enterprise_graph
 from db import get_all_nodes_and_edges
 
 

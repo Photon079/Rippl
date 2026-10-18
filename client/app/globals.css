@@ -21,6 +21,11 @@
   
   --font-mono: "JetBrains Mono", "Cascadia Code", "Fira Code", monospace;
   --font-sans: "Plus Jakarta Sans", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-serif: var(--font-serif), "Instrument Serif", Georgia, Cambria, "Times New Roman", Times, serif;
+}
+
+.font-serif {
+  font-family: var(--font-serif);
 }
 
 * {

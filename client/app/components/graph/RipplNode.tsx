@@ -15,6 +15,7 @@ interface NodePayload {
   hop?: number;
   isDimmed?: boolean;
   isAffected?: boolean;
+  hasActiveRetraction?: boolean;
 }
 
 export const RipplNode = memo(function RipplNode({
@@ -25,24 +26,46 @@ export const RipplNode = memo(function RipplNode({
   const nodeData = data as unknown as NodePayload;
   const rawType = (nodeData.type || "decision").toUpperCase();
   const status = nodeData.status || "Holding";
-  const title = nodeData.title || nodeData.label || nodeData.text || id;
+  const title =
+    nodeData.title ||
+    nodeData.description ||
+    nodeData.text ||
+    (nodeData.label && nodeData.label !== id ? nodeData.label : undefined) ||
+    id;
 
-  const isRetracted = status === "Retracted" || status === "Premise Retracted" || status === "Blocked";
-  const isAtRisk = status === "Premise At Risk" || status === "Proposed Retraction";
-  const isSound = status === "Verified" || status === "Executed" || status === "Holding" || status === "Sound";
+  const isRetracted =
+    status === "Retracted" ||
+    status === "Premise Retracted" ||
+    status === "Blocked";
+  const isExplicitlyAtRisk =
+    status === "Premise At Risk" ||
+    status === "Proposed Retraction" ||
+    status === "Paused";
+  const isChainAtRisk =
+    Boolean(nodeData.hasActiveRetraction) &&
+    Boolean(nodeData.isAffected) &&
+    !isRetracted;
+  const isAtRisk = isExplicitlyAtRisk || isChainAtRisk;
+
+  let displayStatus = "Sound";
+  let statusDotColor = "bg-emerald-500";
+  let statusTextColor = "text-emerald-400";
+
+  if (isRetracted) {
+    displayStatus = rawType === "ACTION" ? "Blocked" : "Retracted";
+    statusDotColor = "bg-rose-500";
+    statusTextColor = "text-rose-400";
+  } else if (isAtRisk) {
+    displayStatus = rawType === "ACTION" ? "Paused" : "At Risk";
+    statusDotColor = "bg-amber-400";
+    statusTextColor = "text-amber-400";
+  } else {
+    displayStatus = "Sound";
+    statusDotColor = "bg-emerald-500";
+    statusTextColor = "text-emerald-400";
+  }
 
   const isDimmed = Boolean(nodeData.isDimmed);
-  const isAffected = isRetracted || isAtRisk || Boolean(nodeData.isAffected);
-
-  // Status dot color
-  let statusDotColor = "bg-zinc-500";
-  if (isRetracted) {
-    statusDotColor = "bg-rose-500";
-  } else if (isAtRisk) {
-    statusDotColor = "bg-amber-400";
-  } else if (isSound) {
-    statusDotColor = "bg-emerald-500";
-  }
 
   // Border color: when affected by blast radius, border-rose-500 or border-amber-500; selected: border-zinc-500; default: border-zinc-800
   let borderColor = "border-zinc-800";
@@ -82,24 +105,16 @@ export const RipplNode = memo(function RipplNode({
         <div className="flex items-center gap-1.5">
           <span className={`w-2 h-2 rounded-full ${statusDotColor}`} />
           <span
-            className={`font-mono text-[10px] uppercase tracking-wide font-medium ${
-              isRetracted ? "text-rose-400" : isAtRisk ? "text-amber-400" : "text-emerald-400"
-            }`}
+            className={`font-mono text-[10px] uppercase tracking-wide font-medium ${statusTextColor}`}
           >
-            {isRetracted ? "Retracted" : isAtRisk ? "At Risk" : "Sound"}
+            {displayStatus}
           </span>
         </div>
       </div>
 
       {/* Middle Row: Entity Title (truncated at 2 lines) */}
-      <div className="text-xs text-zinc-200 line-clamp-2 leading-relaxed font-normal min-h-[36px] my-1">
+      <div className="text-xs text-zinc-200 line-clamp-2 leading-relaxed font-normal min-h-[36px] my-0.5">
         {title}
-      </div>
-
-      {/* Bottom Row: font-mono latency or timestamp metric */}
-      <div className="flex items-center justify-between pt-2 border-t border-zinc-800/80 font-mono text-[11px] text-zinc-500">
-        <span>FalkorDB GraphBLAS</span>
-        <span className="text-zinc-400 font-mono">3.2ms BFS</span>
       </div>
 
       {/* Source Handle */}

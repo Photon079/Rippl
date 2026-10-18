@@ -9,11 +9,14 @@ class Settings(BaseSettings):
     FALKORDB_PORT: int = 6379
     FALKORDB_GRAPH: str = "rippl"
 
+    GROQ_API_KEY: str = ""
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
 
     class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+        env_file = [".env", "server/.env", "../.env"]
+        extra = "ignore"
 
 
 @lru_cache

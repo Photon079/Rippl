@@ -2,7 +2,7 @@
 Rippl Empirical Benchmark Runner
 Evaluates:
 1. Macro-Average Invalidation Recall across ALL 30 claims in the 113-node causal graph.
-2. Ground-truth downstream blast radius authored in the Northwind infrastructure scenario (seed_pep.py).
+2. Ground-truth downstream blast radius authored in the Northwind infrastructure scenario (seed_northwind.py).
 3. Real dense vector embeddings generated with BAAI/bge-small-en-v1.5 (via fastembed ONNX).
 4. Live 100-iteration timing benchmarks comparing:
    - FalkorDB (client-server TCP socket)
@@ -126,7 +126,7 @@ def run_sqlite_timing(nodes, edges, n=100):
 def evaluate_all_claims_recall(nodes, model):
     """
     Evaluates invalidation recall across ALL 30 claims in the graph.
-    Ground truth is computed via variable-length traversal over author-defined causal edges (seed_pep.py).
+    Ground truth is computed via variable-length traversal over author-defined causal edges (seed_northwind.py).
     Vector baseline uses real BAAI/bge-small-en-v1.5 embeddings with cosine similarity top-5.
     """
     print("Evaluating recall across ALL 30 claims using real BAAI/bge-small-en-v1.5 embeddings...")
@@ -205,7 +205,7 @@ def evaluate_all_claims_recall(nodes, model):
 
     return {
         "claims_evaluated_count": len(falkor_recalls),
-        "ground_truth_provenance": "Authored in Northwind operational seed graph (seed_pep.py)",
+        "ground_truth_provenance": "Authored in Northwind operational seed graph (seed_northwind.py)",
         "embedding_model": "BAAI/bge-small-en-v1.5 (384-dim, ONNX runtime via fastembed)",
         "macro_average_recall": {
             "falkordb_pct": macro_falkor_recall,
@@ -276,7 +276,7 @@ def main():
     # 5. Assemble final benchmark data
     output = {
         "benchmark_title": "Rippl Quantitative Invalidation Benchmark (FalkorDB vs Recursive SQL vs Flat Vector RAG)",
-        "evaluation_scope": f"All {recall_eval['claims_evaluated_count']} claims evaluated against ground-truth causal sets authored in seed_pep.py",
+        "evaluation_scope": f"All {recall_eval['claims_evaluated_count']} claims evaluated against ground-truth causal sets authored in seed_northwind.py",
         "sample_size_timing_runs": 100,
         "total_graph_nodes": len(nodes),
         "embedding_model": recall_eval["embedding_model"],
@@ -305,7 +305,7 @@ def main():
         "timestamp": int(time.time()),
         "generated_at": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
         "baseline_footnote": (
-            "Evaluated across all 30 claims in the 113-node causal graph. Ground truth blast radius is computed from the causal edges authored in seed_pep.py. "
+            "Evaluated across all 30 claims in the 113-node causal graph. Ground truth blast radius is computed from the causal edges authored in seed_northwind.py. "
             "Both FalkorDB and SQLite CTE achieve 100.0% recall in sub-millisecond execution. Most of the 0.85ms latency gap reflects client-server network socket overhead of FalkorDB compared to in-process execution of SQLite. "
             "Flat-Vector RAG uses real BAAI/bge-small-en-v1.5 embeddings of node text, achieving 45.4% macro-average recall because downstream operational policies and execution actions share zero lexical or semantic similarity with low-level database metrics."
         ),

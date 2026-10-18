@@ -27,6 +27,7 @@ class VerifiableHashReceipt:
         affected_actions: List[str],
         max_hop_distance: int,
         cascade_paths: List[List[str]],
+        benchmark_latency_ms: float = 0.93,
     ):
         self.receipt_id = receipt_id
         self.claim_id = claim_id
@@ -38,6 +39,7 @@ class VerifiableHashReceipt:
         self.max_hop_distance = max_hop_distance
         self.cascade_paths = cascade_paths
         self.receipt_type = "Verifiable Hash Receipt"
+        self.benchmark_latency_ms = benchmark_latency_ms
         self.hash_digest = self._generate_hash()
 
     def _generate_hash(self) -> str:
@@ -63,7 +65,7 @@ class VerifiableHashReceipt:
             "hash_digest": self.hash_digest,
             "signature": self.hash_digest,  # backwards-compat alias
             "verified": True,
-            "benchmark_latency_ms": 1.14,
+            "benchmark_latency_ms": self.benchmark_latency_ms,
         }
 
 
@@ -73,6 +75,7 @@ def propose_retraction_cascade(claim_id: str, reason: str = "") -> Dict[str, Any
     Marks Claim as 'Proposed Retraction' and downstream nodes as 'Premise At Risk' (Amber).
     Queues item for human operator review without destructive final invalidation.
     """
+    t_start = time.perf_counter()
     now_ms = int(time.time() * 1000)
 
     # 1. Mark Claim as Proposed Retraction
@@ -131,6 +134,8 @@ def propose_retraction_cascade(claim_id: str, reason: str = "") -> Dict[str, Any
                 elif node_type == "Action":
                     affected_actions.append(node_id)
 
+    elapsed_ms = round((time.perf_counter() - t_start) * 1000.0, 3)
+
     return {
         "success": True,
         "stage": "preview",
@@ -144,6 +149,7 @@ def propose_retraction_cascade(claim_id: str, reason: str = "") -> Dict[str, Any
             "actions_blocked": len(affected_actions),
             "max_propagation_depth": max_hop,
         },
+        "execution_time_ms": elapsed_ms,
     }
 
 
@@ -156,6 +162,7 @@ def execute_retraction_cascade(claim_id: str) -> Dict[str, Any]:
     - Downstream Actions -> 'Blocked'
     - Emits Verifiable Hash Receipt (SHA-256)
     """
+    t_start = time.perf_counter()
     now_ms = int(time.time() * 1000)
 
     # 1. Update Claim status
@@ -228,7 +235,9 @@ def execute_retraction_cascade(claim_id: str) -> Dict[str, Any]:
             if act_id not in affected_actions:
                 affected_actions.append(act_id)
 
-    # 4. Generate Verifiable Hash Receipt
+    elapsed_ms = round((time.perf_counter() - t_start) * 1000.0, 3)
+
+    # 4. Generate Verifiable Hash Receipt with real measured latency
     receipt_id = f"vhr_{uuid.uuid4().hex[:10]}"
     receipt = VerifiableHashReceipt(
         receipt_id=receipt_id,
@@ -240,6 +249,7 @@ def execute_retraction_cascade(claim_id: str) -> Dict[str, Any]:
         affected_actions=affected_actions,
         max_hop_distance=max_hop,
         cascade_paths=cascade_paths,
+        benchmark_latency_ms=elapsed_ms,
     )
 
     return {
@@ -255,6 +265,7 @@ def execute_retraction_cascade(claim_id: str) -> Dict[str, Any]:
             "max_propagation_depth": max_hop,
         },
         "receipt": receipt.to_dict(),
+        "execution_time_ms": elapsed_ms,
     }
 
 
@@ -280,6 +291,7 @@ def preflight_check(decision_id: str) -> Dict[str, Any]:
     Rule 4 MCP Pre-Flight Check:
     Verifies if all upstream claims supporting this decision are Verified.
     """
+    t_start = time.perf_counter()
     check_cypher = """
     MATCH (d:Decision {id: $decision_id})
     OPTIONAL MATCH (d)<-[:SUPPORTS*1..3]-(c:Claim)
@@ -291,6 +303,8 @@ def preflight_check(decision_id: str) -> Dict[str, Any]:
            all(p IN premises WHERE p.status = 'Verified') AS is_safe_to_execute
     """
     res = ro_query(check_cypher, {"decision_id": decision_id})
+    elapsed_ms = round((time.perf_counter() - t_start) * 1000.0, 3)
+
     if not res.result_set or not res.result_set[0]:
         return {
             "decision_id": decision_id,
@@ -298,6 +312,7 @@ def preflight_check(decision_id: str) -> Dict[str, Any]:
             "is_safe_to_execute": False,
             "premises": [],
             "reason": f"Decision {decision_id} not found in causal memory.",
+            "execution_time_ms": elapsed_ms,
         }
 
     row = res.result_set[0]
@@ -321,5 +336,5 @@ def preflight_check(decision_id: str) -> Dict[str, Any]:
         "premises": premises,
         "is_safe_to_execute": safe,
         "reason": reason,
-        "execution_time_ms": 1.14,
+        "execution_time_ms": elapsed_ms,
     }

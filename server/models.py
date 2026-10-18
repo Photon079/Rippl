@@ -177,3 +177,15 @@ class HealthResponse(BaseModel):
     db_connected: bool
     node_count: int
     edge_count: int
+
+
+# ─── Real Agent & Ingestion Schemas ─────────────────────
+
+class AgentRunRequest(BaseModel):
+    goal: Optional[str] = "Evaluate and execute operational action following causal preflight safety guardrails."
+    action_id: Optional[str] = "ACT-001"
+    decision_id: Optional[str] = "DEC-001"
+
+
+class IngestRequest(BaseModel):
+    text: str

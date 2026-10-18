@@ -1,6 +1,6 @@
 # Rippl: Deterministic Causal Memory Layer for Autonomous Systems
 
-> **One-line Thesis:** Rippl replaces fragile vector similarity with a load-bearing FalkorDB dependency graph that maps autonomous decisions back to foundational premises, intercepting compromised agent tool executions in **1.14ms** via sparse-matrix GraphBLAS traversal.
+> **One-line Thesis:** Rippl replaces fragile vector similarity with a load-bearing FalkorDB dependency graph that maps autonomous decisions back to foundational premises, intercepting compromised agent tool executions in **0.93ms** via sparse-matrix GraphBLAS traversal.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg)](LICENSE)
 [![FalkorDB](https://img.shields.io/badge/Graph_Engine-FalkorDB_GraphBLAS-blue.svg)](https://falkordb.com)
@@ -57,7 +57,7 @@ Rippl operates as a strict pre-flight causal verification gate positioned betwee
 |                                    "ACT-001: Flush billing queue"                 |
 +-----------------------------------------------------------------------------------+
                                           |
-                        3. Cascade Propagation (< 1.14ms)
+                        3. Cascade Propagation (< 0.93ms)
                                           v
                       +---------------------------------------+
                       |         Interception Verdict          |
@@ -103,7 +103,7 @@ RETURN c.id AS claim_id,
        c.status AS claim_status,
        s.title AS source_title;
 ```
-If any claim is `Retracted` or `Premise Retracted`, the pre-flight check returns `is_safe_to_execute = False`, and the executor agent halts in **1.14ms** prior to tool invocation.
+If any claim is `Retracted` or `Premise Retracted`, the pre-flight check returns `is_safe_to_execute = False`, and the executor agent halts in **0.93ms** prior to tool invocation.
 
 #### C. Human-in-the-Loop Reversal / Rejection
 If a human SRE operator rejects an invalidation proposal, downstream nodes are atomically restored back to their sound state:
@@ -141,11 +141,11 @@ To maintain absolute transparency with hackathon organizers and adhere strictly 
 ### Rebuilt on FalkorDB Post-Kickoff (After Oct 15, 12:01 AM IST):
 > *"After kickoff I started a new repository and rebuilt the core on FalkorDB: the Cypher ingestion, the 113-node schema, the variable-length cascade, a FalkorDB-persisted review queue, the pre-flight gate and a live benchmark harness. I’ve listed both phases in the README."*
 
-- **FalkorDB Native Ingestion & Schema:** Native ingestion scripts (`seed_pep.py`) creating the 113-node causal schema with GraphBLAS-optimized relationship types (`STATES`, `SUPPORTS`, `DEPENDS_ON`, `DRIVES`, `TRIGGERS`).
+- **FalkorDB Native Ingestion & Schema:** Native ingestion scripts (`seed_northwind.py`) creating the 113-node causal schema with GraphBLAS-optimized relationship types (`STATES`, `SUPPORTS`, `DEPENDS_ON`, `DRIVES`, `TRIGGERS`).
 - **Variable-Length Traversal Cascade:** Cypher traversal engine executing variable-length paths (`*1..5`) and atomic status cascades.
 - **FalkorDB-Persisted Review Queue:** Native `:ReviewItem` nodes linked via `(:Claim)-[:HAS_REVIEW]->(:ReviewItem)` in the graph with SHA-256 hash receipts, surviving server restarts.
 - **MCP Pre-Flight Interceptor Gate:** FastAPI pre-flight validation endpoint (`/api/mcp/pre-flight-check`) blocking compromised agent tool actions in sub-millisecond latency.
-- **Empirical Benchmark Suite:** `server/run_benchmark.py` running 100 live iterations on active FalkorDB vs. SQLite 3 recursive CTE and 1536-dim vector cosine similarity.
+- **Empirical Benchmark Suite:** `server/run_benchmark.py` running 100 live iterations on active FalkorDB vs. SQLite 3 recursive CTE and 384-dim BAAI/bge-small-en-v1.5 vector cosine similarity.
 - **Production UI:** Next.js 16 (v16.4.0 with Turbopack) with Dagre LR layered layout, slide-out node drawer, real-time WebSocket retraction broadcasts, and elimination of all mock fallbacks.
 - **Commit History:** History was rewritten once on Oct 15 at 11:21 PM IST to remove hand-set commit dates, so commit times reflect that rewrite, not when the work was done.
 
@@ -176,7 +176,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## 7. Empirical Ablation Benchmarks
 
-Evaluated across **all 30 claims** in the 113-node causal graph against ground-truth causal sets authored in [`server/seed_pep.py`](server/seed_pep.py). Timing metrics are averaged over 100 live iterations of the standard `CLM-001` blast radius. Raw committed data is available in [`client/public/benchmark_results.json`](client/public/benchmark_results.json).
+Evaluated across **all 30 claims** in the 113-node causal graph against ground-truth causal sets authored in [`server/seed_northwind.py`](server/seed_northwind.py). Timing metrics are averaged over 100 live iterations of the standard `CLM-001` blast radius. Raw committed data is available in [`client/public/benchmark_results.json`](client/public/benchmark_results.json).
 
 | Architecture Engine | Database / Storage | Execution Protocol | Macro-Avg Recall (All 30 Claims) | Query Timing (100 runs) | Silent Failures (CLM-001) | Verifiable Receipt |
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: |
@@ -185,7 +185,7 @@ Evaluated across **all 30 claims** in the 113-node causal graph against ground-t
 | Flat-Vector RAG | Dense Vector Index (BAAI/bge-small-en-v1.5) | **in-process** (local 384-dim vector index) | 45.4% | 0.01 ms | 4 | None (Unverifiable) |
 
 ### Honest Architectural Analysis: FalkorDB vs. SQL CTE
-Both FalkorDB and Recursive SQL CTE achieve **100.0% recall** across all 30 claims in the graph, executing in **sub-millisecond** time. On a 113-node graph, raw query execution speed differences are negligible in practice. Most of the 0.85ms latency gap between FalkorDB and SQLite is the client-server network socket round-trip of FalkorDB compared to in-process memory execution of SQLite.
+Rippl's 100% recall is true by construction because ground truth comes from the same seeded causal edges Rippl traverses, so Rippl cannot miss; the meaningful empirical finding is that text similarity recovers only 45.4% of declared dependencies. Both FalkorDB and Recursive SQL CTE achieve **100.0% recall** across all 30 claims in the graph, executing in **sub-millisecond** time. On a 113-node graph, raw query execution speed differences are negligible in practice. Most of the 0.85ms latency gap between FalkorDB and SQLite is the client-server network socket round-trip of FalkorDB compared to in-process memory execution of SQLite.
 
 The honest architectural advantages of FalkorDB are **query expressiveness, traversal ergonomics, and native graph representation**:
 1. **Query Expressiveness:** In Cypher, variable-length heterogeneous causal dependencies are expressed in a single, readable line:
@@ -199,7 +199,7 @@ The honest architectural advantages of FalkorDB are **query expressiveness, trav
 
 ### Real Vector Embedding Methodology (BAAI/bge-small-en-v1.5)
 - **Model & Embedded Content:** Uses real `BAAI/bge-small-en-v1.5` embeddings (384-dimensional normalized float32 vectors generated via the ONNX runtime with `fastembed`). Embeddings encode node text descriptions (`node.text`: claim statements, decision policy descriptions, and action command descriptions).
-- **Why Recall is 45.4% (Silent Failures):** Ground truth causal blast radiuses are defined by the causal edges in `seed_pep.py`. In `CLM-001` (*"Shard-09 metrics: write throughput 12.3%, latency p99 < 8ms"*), vector cosine search retrieves only the root claim itself, missing `DEC-001`, `DEC-002`, `ACT-001`, and `ACT-018`. Downstream regional routing policies and execution actions share zero lexical or semantic similarity with database lag metrics, causing flat-vector RAG to miss them completely and produce silent agent failures. Across all 30 claims, vector search achieves an average recall of only 45.4%.
+- **Why Recall is 45.4% (Silent Failures):** Ground truth causal blast radiuses are defined by the causal edges in `seed_northwind.py`. In `CLM-001` (*"Shard-09 metrics: write throughput 12.3%, latency p99 < 8ms"*), vector cosine search retrieves only the root claim itself, missing `DEC-001`, `DEC-002`, `ACT-001`, and `ACT-018`. Downstream regional routing policies and execution actions share zero lexical or semantic similarity with database lag metrics, causing flat-vector RAG to miss them completely and produce silent agent failures. Across all 30 claims, vector search achieves an average recall of only 45.4%.
 
 ### Reproducing the Benchmark
 ```bash

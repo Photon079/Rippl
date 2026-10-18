@@ -8,7 +8,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 from config import get_settings
-from redis.exceptions import ResponseError
+from redis.exceptions import ResponseError, ConnectionError as RedisConnectionError, TimeoutError as RedisTimeoutError
 
 logger = logging.getLogger("rippl.db")
 
@@ -73,12 +73,12 @@ def get_graph():
 
 def query(cypher: str, params: Optional[dict] = None):
     """Execute Cypher query directly on FalkorDB with auto-reconnect on idle socket drop."""
-    global _db_client, _graph
+    global _db, _graph
     try:
         g = get_graph()
         return g.query(cypher, params or {})
-    except (ConnectionError, TimeoutError):
-        _db_client = None
+    except (ConnectionError, TimeoutError, RedisConnectionError, RedisTimeoutError):
+        _db = None
         _graph = None
         g = get_graph()
         return g.query(cypher, params or {})
@@ -90,12 +90,12 @@ def query(cypher: str, params: Optional[dict] = None):
 
 def ro_query(cypher: str, params: Optional[dict] = None):
     """Execute read-only Cypher query directly on FalkorDB with auto-reconnect."""
-    global _db_client, _graph
+    global _db, _graph
     try:
         g = get_graph()
         return g.ro_query(cypher, params or {})
-    except (ConnectionError, TimeoutError):
-        _db_client = None
+    except (ConnectionError, TimeoutError, RedisConnectionError, RedisTimeoutError):
+        _db = None
         _graph = None
         g = get_graph()
         return g.ro_query(cypher, params or {})
@@ -115,14 +115,14 @@ def get_all_nodes_and_edges() -> Dict[str, List[Dict[str, Any]]]:
     # Query all causal nodes (excluding metadata ReviewItems)
     nodes_cypher = "MATCH (n) WHERE NOT n:ReviewItem RETURN coalesce(n.id, toString(id(n))) AS id, labels(n)[0] AS label, properties(n) AS properties"
     try:
-        nodes_res = g.ro_query(nodes_cypher)
+        nodes_res = ro_query(nodes_cypher)
     except ResponseError as e:
         if "empty key" in str(e).lower():
             return {"nodes": [], "edges": []}
         raise
 
     nodes_data = []
-    if nodes_res.result_set:
+    if nodes_res and hasattr(nodes_res, "result_set") and nodes_res.result_set:
         for row in nodes_res.result_set:
             node_id = str(row[0])
             label = str(row[1]) if row[1] else "Entity"
@@ -143,7 +143,7 @@ def get_all_nodes_and_edges() -> Dict[str, List[Dict[str, Any]]]:
         "       coalesce(t.id, toString(id(t))) AS target_id"
     )
     try:
-        edges_res = g.ro_query(edges_cypher)
+        edges_res = ro_query(edges_cypher)
     except ResponseError as e:
         if "empty key" in str(e).lower():
             return {"nodes": nodes_data, "edges": []}

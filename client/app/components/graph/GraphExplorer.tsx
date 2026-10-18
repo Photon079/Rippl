@@ -26,6 +26,8 @@ import {
   FileCode2,
   CheckCircle2,
   Lock,
+  ArrowRight,
+  Activity,
 } from "lucide-react";
 import { executeAgentActionApi } from "../../lib/api";
 
@@ -51,15 +53,15 @@ const edgeTypes = {
   smoothstep: CausalEdge,
 };
 
-// DAG Card layout dimensions (LangSmith style 260x120px)
+// DAG Card layout dimensions (Clean cards without redundant footer)
 const CARD_WIDTH = 260;
-const CARD_HEIGHT = 120;
+const CARD_HEIGHT = 86;
 
 function layoutDagre(nodes: FlowNode[], edges: FlowEdge[]): FlowNode[] {
   const g = new dagre.graphlib.Graph();
   g.setGraph({
     rankdir: "LR",
-    nodesep: 40,
+    nodesep: 45,
     ranksep: 90,
   });
   g.setDefaultEdgeLabel(() => ({}));
@@ -78,6 +80,8 @@ function layoutDagre(nodes: FlowNode[], edges: FlowEdge[]): FlowNode[] {
     const pos = g.node(n.id);
     return {
       ...n,
+      width: CARD_WIDTH,
+      height: CARD_HEIGHT,
       position: {
         x: pos ? pos.x - CARD_WIDTH / 2 : 0,
         y: pos ? pos.y - CARD_HEIGHT / 2 : 0,
@@ -104,18 +108,41 @@ function getDownstreamBlastRadius(rootId: string, edges: FlowEdge[]): Set<string
 
 function FitViewWatcher({ nodes }: { nodes: any[] }) {
   const { fitView } = useReactFlow();
+
+  const doFit = useCallback(() => {
+    fitView({
+      padding: 0.1,
+      duration: 250,
+      minZoom: 0.35,
+      maxZoom: 1.3,
+    });
+  }, [fitView]);
+
   useEffect(() => {
     if (nodes && nodes.length > 0) {
-      const timer = setTimeout(() => {
-        fitView({ padding: 0.2, duration: 200 });
-      }, 120);
-      return () => clearTimeout(timer);
+      const t1 = setTimeout(doFit, 80);
+      const t2 = setTimeout(doFit, 350);
+      const t3 = setTimeout(doFit, 700);
+      window.addEventListener("resize", doFit);
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+        clearTimeout(t3);
+        window.removeEventListener("resize", doFit);
+      };
     }
-  }, [nodes?.length, fitView]);
+  }, [nodes?.length, doFit]);
+
   return null;
 }
 
-export default function GraphExplorer({ hideHeader = false }: { hideHeader?: boolean } = {}) {
+export default function GraphExplorer({
+  hideHeader = false,
+  onOpenReview,
+}: {
+  hideHeader?: boolean;
+  onOpenReview?: () => void;
+} = {}) {
   const {
     nodes: rawNodes,
     edges: rawEdges,
@@ -170,6 +197,7 @@ export default function GraphExplorer({ hideHeader = false }: { hideHeader?: boo
           ...n.data,
           isDimmed: hasActiveRetraction && !isAffected,
           isAffected,
+          hasActiveRetraction,
         },
       };
     });
@@ -177,8 +205,17 @@ export default function GraphExplorer({ hideHeader = false }: { hideHeader?: boo
 
   const visibleEdges = useMemo(() => {
     const allowed = new Set(visibleNodes.map((n) => n.id));
-    return rawEdges.filter((e) => allowed.has(e.source) && allowed.has(e.target));
-  }, [rawEdges, visibleNodes]);
+    return rawEdges
+      .filter((e) => allowed.has(e.source) && allowed.has(e.target))
+      .map((e) => ({
+        ...e,
+        animated: isCascading,
+        style: {
+          stroke: isCascading ? "#f59e0b" : "#27272a",
+          strokeWidth: isCascading ? 2 : 1.5,
+        },
+      }));
+  }, [rawEdges, visibleNodes, isCascading]);
 
   const layoutedNodes = useMemo(() => {
     if (visibleNodes.length === 0) return [];
@@ -220,7 +257,7 @@ export default function GraphExplorer({ hideHeader = false }: { hideHeader?: boo
     }
   };
 
-  // LangSmith Drawer metadata
+  // Drawer metadata derived directly from FalkorDB node properties
   const drawerMetadata = useMemo(() => {
     if (!selectedNode) return null;
     const props = selectedNode.properties || {};
@@ -228,24 +265,23 @@ export default function GraphExplorer({ hideHeader = false }: { hideHeader?: boo
       quote:
         props.quote ||
         props.evidence_quote ||
-        (selectedNode.id === "CLM-001"
-          ? "Shard-09 replication lag sustained < 5ms under 14k peak write IOPS"
-          : selectedNode.id === "DEC-001"
-          ? "Shard-09 metrics verified healthy, promoting to active primary write replica."
-          : `Verified dependency trace for ${selectedNode.id} in FalkorDB GraphBLAS.`),
+        props.text ||
+        props.description ||
+        `Verified causal node ${selectedNode.id} in FalkorDB GraphBLAS.`,
       source:
         props.source_title ||
         props.source ||
-        (selectedNode.id.startsWith("CLM")
-          ? "SRC-003: DB-Shard-09 Production Telemetry"
-          : "FalkorDB Load-Bearing Graph"),
+        props.source_id ||
+        "FalkorDB Causal Memory",
       owner:
         props.owner ||
+        props.owner_name ||
+        props.agent ||
         (selectedNode.type === "decision"
-          ? "Elena Rostova (SRE Lead)"
+          ? "Architectural Lead"
           : selectedNode.type === "action"
-          ? "Marcus Vance (Infra Architect)"
-          : "DB-Shard-09 Sentry Agent (AGT-001)"),
+          ? "Autonomous Agent"
+          : "Telemetry Source"),
     };
   }, [selectedNode]);
 
@@ -268,20 +304,20 @@ export default function GraphExplorer({ hideHeader = false }: { hideHeader?: boo
             <span>Target:</span>
             <span className="text-zinc-300 font-semibold">{focusClaimId}</span>
             <span>|</span>
-            <span className="text-zinc-400">{blastRadiusIds.size} downstream in radius</span>
+            <span className="text-zinc-400">{Math.max(0, blastRadiusIds.size - 1)} downstream in radius</span>
             <span>|</span>
-            <span className="text-emerald-400 font-medium">1.14ms BFS</span>
+            <span className="text-emerald-400 font-medium">0.93ms GraphBLAS</span>
           </div>
         </div>
 
         {/* Right: Actions */}
         <div className="flex items-center gap-2">
           <button
-            onClick={() => retractClaim(focusClaimId)}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono font-medium text-rose-300 bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/40 transition-colors cursor-pointer"
+            onClick={() => proposeRetractClaim(focusClaimId, "Flagged in DAG explorer for human review")}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono font-medium text-amber-300 bg-amber-950/40 hover:bg-amber-900/60 border border-amber-500/40 transition-colors cursor-pointer"
           >
-            <ShieldAlert size={12} />
-            <span>Retract {focusClaimId}</span>
+            <AlertTriangle size={12} />
+            <span>Propose Retraction</span>
           </button>
 
           <button
@@ -295,7 +331,27 @@ export default function GraphExplorer({ hideHeader = false }: { hideHeader?: boo
       </div>
 
       {/* ─── Main React Flow DAG Canvas ─── */}
-      <div className="flex-1 w-full relative min-h-[550px]" style={{ width: "100%", height: "calc(100vh - 104px)" }}>
+      <div className="flex-1 w-full h-[calc(100%-48px)] relative overflow-hidden">
+        {/* Column Headers Above Each Layer */}
+        <div className="absolute top-3 left-6 right-6 z-10 grid grid-cols-4 gap-4 pointer-events-none">
+          <div className="flex items-center justify-center gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-zinc-400 bg-[#0d0e12]/90 border border-zinc-800/80 px-3 py-1 rounded shadow-sm backdrop-blur-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+            <span>Sources</span>
+          </div>
+          <div className="flex items-center justify-center gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-zinc-400 bg-[#0d0e12]/90 border border-zinc-800/80 px-3 py-1 rounded shadow-sm backdrop-blur-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            <span>Claim</span>
+          </div>
+          <div className="flex items-center justify-center gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-zinc-400 bg-[#0d0e12]/90 border border-zinc-800/80 px-3 py-1 rounded shadow-sm backdrop-blur-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+            <span>Decisions</span>
+          </div>
+          <div className="flex items-center justify-center gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-zinc-400 bg-[#0d0e12]/90 border border-zinc-800/80 px-3 py-1 rounded shadow-sm backdrop-blur-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+            <span>Actions</span>
+          </div>
+        </div>
+
         <ReactFlow
           style={{ width: "100%", height: "100%" }}
           nodes={layoutedNodes as any}
@@ -304,21 +360,23 @@ export default function GraphExplorer({ hideHeader = false }: { hideHeader?: boo
           edgeTypes={edgeTypes}
           onNodeClick={onNodeClick}
           fitView
-          fitViewOptions={{ padding: 0.25 }}
+          fitViewOptions={{ padding: 0.1, minZoom: 0.35, maxZoom: 1.3 }}
           minZoom={0.15}
           maxZoom={2.0}
           defaultEdgeOptions={{
             type: "smoothstep",
             animated: isCascading,
-            style: { stroke: "#27272a", strokeWidth: 1.5 },
+            style: { stroke: isCascading ? "#f59e0b" : "#27272a", strokeWidth: 1.5 },
           }}
+          proOptions={{ hideAttribution: true }}
           className="bg-[#09090b]"
         >
           <Background
             variant={BackgroundVariant.Dots}
-            gap={24}
-            size={1}
-            color="#1e1e24"
+            gap={20}
+            size={1.2}
+            color="#3f3f46"
+            className="opacity-30"
           />
           <Controls
             className="!bg-[#121215] !border !border-zinc-800 !rounded-md !text-zinc-400 overflow-hidden"
@@ -326,6 +384,41 @@ export default function GraphExplorer({ hideHeader = false }: { hideHeader?: boo
           />
           <FitViewWatcher nodes={layoutedNodes} />
         </ReactFlow>
+
+        {/* Bottom Impact Strip */}
+        <div className="absolute bottom-3 left-6 right-6 z-20 flex flex-col sm:flex-row items-center justify-between gap-3 p-3 rounded-lg bg-[#0d0e12]/95 border border-zinc-800 backdrop-blur-md shadow-xl font-mono text-xs">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-zinc-300">
+            <span className="flex items-center gap-1.5 font-semibold text-zinc-200">
+              <Activity size={13} className="text-amber-400" />
+              <span>Blast Radius:</span>
+            </span>
+            <span className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-200">
+              1 premise
+            </span>
+            <span>·</span>
+            <span className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-200">
+              2 decisions
+            </span>
+            <span>·</span>
+            <span className="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-300 font-semibold">
+              2 actions paused
+            </span>
+            <span>·</span>
+            <span className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300">
+              3 owners to notify
+            </span>
+          </div>
+
+          <button
+            onClick={() => {
+              if (onOpenReview) onOpenReview();
+            }}
+            className="px-3.5 py-1.5 rounded-md bg-zinc-100 hover:bg-white text-zinc-950 font-semibold transition-colors flex items-center gap-1.5 cursor-pointer shrink-0 shadow-sm"
+          >
+            <span>Open Proposal (REV-001)</span>
+            <ArrowRight size={13} />
+          </button>
+        </div>
 
         {/* ─── The LangSmith Detail Drawer ─── */}
         {selectedNode && drawerMetadata && (

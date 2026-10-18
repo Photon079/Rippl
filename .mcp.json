@@ -12,7 +12,8 @@
         "database_schema",
         "check_premises",
         "retract_claim",
-        "why"
+        "why",
+        "inspect_causal_deps"
       ]
     }
   }

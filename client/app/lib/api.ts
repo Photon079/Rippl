@@ -108,6 +108,15 @@ export async function seedGraphApi(): Promise<any> {
   return res.json();
 }
 
+export async function resetGraphApi(): Promise<any> {
+  const res = await fetch(`${API_BASE}/reset`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!res.ok) throw new Error(`Failed to reset graph: ${res.statusText}`);
+  return res.json();
+}
+
 export async function fetchReviewQueue(): Promise<any[]> {
   const res = await fetch(`${API_BASE}/review-queue`, { cache: "no-store" });
   if (!res.ok) throw new Error(`Failed to fetch review queue: ${res.statusText}`);
@@ -138,6 +147,7 @@ export async function askProvenanceApi(question: string): Promise<{
   cypher_query: string;
   provenance_path: Array<{ id: string; title: string; type: string; status: string }>;
   execution_time_ms: number;
+  llm_provider?: string;
 }> {
   const res = await fetch(`${API_BASE}/ask`, {
     method: "POST",
@@ -164,6 +174,26 @@ export async function executeAgentActionApi(): Promise<any> {
     headers: { "Content-Type": "application/json" },
   });
   if (!res.ok) throw new Error(`Failed agent action: ${res.statusText}`);
+  return res.json();
+}
+
+export async function runAgentApi(goal: string, actionId: string = "ACT-001", decisionId: string = "DEC-001"): Promise<any> {
+  const res = await fetch(`${API_BASE}/agent/run`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ goal, action_id: actionId, decision_id: decisionId }),
+  });
+  if (!res.ok) throw new Error(`Failed to run agent: ${res.statusText}`);
+  return res.json();
+}
+
+export async function ingestDocumentApi(text: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/ingest`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+  if (!res.ok) throw new Error(`Failed to ingest document: ${res.statusText}`);
   return res.json();
 }
 
