@@ -568,21 +568,23 @@ function RipplProductExperience() {
               </button>
             </div>
             <div className="relative aspect-video bg-black">
-              <video
-                src="/demo.mp4"
-                controls
-                autoPlay
-                className="w-full h-full object-contain"
+              <iframe
+                src="https://www.youtube-nocookie.com/embed/QdR-PDQV-Ac?autoplay=1&rel=0"
+                title="Rippl Technical Walkthrough Demo"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="w-full h-full border-0"
               />
             </div>
             <div className="p-3 bg-[#121215] border-t border-zinc-800 flex items-center justify-between text-xs font-mono text-zinc-400">
               <span>FalkorDB GraphBLAS variable-length causal traversal</span>
               <a
-                href="/demo.mp4"
-                download="rippl_demo.mp4"
-                className="text-zinc-200 hover:text-white font-medium"
+                href="https://youtu.be/QdR-PDQV-Ac"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-zinc-200 hover:text-white font-medium flex items-center gap-1.5"
               >
-                Download MP4 &darr;
+                Watch on YouTube &rarr;
               </a>
             </div>
           </div>

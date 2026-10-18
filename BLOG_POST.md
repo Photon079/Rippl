@@ -336,6 +336,7 @@ Deploying Next.js, FastAPI, and FalkorDB in a single free-tier cloud container r
 
 Rippl is open-source and built for the **WeMakeDevs × FalkorDB "Graph Hacks: Context for AI Agents"** hackathon.
 
+- **Demo Video Walkthrough (1m 40s):** [https://youtu.be/QdR-PDQV-Ac](https://youtu.be/QdR-PDQV-Ac)
 - **Live Application:** [https://rippl-09hk.onrender.com](https://rippl-09hk.onrender.com)
 - **GitHub Repository:** [https://github.com/Photon079/Rippl](https://github.com/Photon079/Rippl)
 - **Architecture Reference:** [FEATURES.md](file:///c:/Users/ASUS%20TUF/Documents/Rippl/FEATURES.md)

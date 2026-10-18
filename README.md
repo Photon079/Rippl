@@ -3,6 +3,7 @@
 > **One-line Thesis:** Rippl replaces fragile vector similarity with a load-bearing FalkorDB dependency graph that maps autonomous decisions back to foundational premises, intercepting compromised agent tool executions in **0.93ms** via sparse-matrix GraphBLAS traversal.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg)](LICENSE)
+[![Demo Video](https://img.shields.io/badge/Demo_Video-YouTube-red?logo=youtube)](https://youtu.be/QdR-PDQV-Ac)
 [![FalkorDB](https://img.shields.io/badge/Graph_Engine-FalkorDB_GraphBLAS-blue.svg)](https://falkordb.com)
 [![Next.js](https://img.shields.io/badge/Frontend-Next.js_16_(v16.4.0)-zinc.svg)](https://nextjs.org)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI_Python_3.11-teal.svg)](https://fastapi.tiangolo.com)
@@ -11,6 +12,9 @@
 ---
 
 ## 1. System Overview & Architecture
+
+> 📺 **Watch Technical Demo Video (1m 40s):** [https://youtu.be/QdR-PDQV-Ac](https://youtu.be/QdR-PDQV-Ac)  
+> 🌐 **Live Web App:** [https://rippl-09hk.onrender.com](https://rippl-09hk.onrender.com)
 
 Autonomous agents frequently execute dangerous tool calls based on outdated or invalidated premises. Standard vector databases (RAG) fail to prevent this because text embeddings measure semantic similarity rather than logical causation—missing up to **54.6%** of downstream dependent actions.
 
