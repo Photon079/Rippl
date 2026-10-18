@@ -36,3 +36,15 @@ yarn-error.log*
 Thumbs.db
 desktop.ini
 server/frames/
+
+# Media & Videos
+*.mp4
+*.gif
+*.webm
+*.mov
+*.avi
+
+# Local Documentation & Scratchpad (Not for public repo)
+FEATURES.md
+prd.md
+
