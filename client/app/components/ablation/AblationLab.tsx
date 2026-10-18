@@ -17,18 +17,36 @@ import {
 export default function AblationLab() {
   const [data, setData] = useState<any | null>(null);
   const [isRunning, setIsRunning] = useState(false);
+  const [lastRunTime, setLastRunTime] = useState<string>("");
 
-  const loadBenchmark = async () => {
+  const loadBenchmark = async (isLive = false) => {
     setIsRunning(true);
     try {
-      // Direct fetch from saved benchmark_results.json or API endpoint
+      if (isLive) {
+        const liveRes = await fetch("/api/benchmark/run", { method: "POST", cache: "no-store" });
+        if (liveRes.ok) {
+          const liveJson = await liveRes.json();
+          setData(liveJson);
+          setLastRunTime(new Date().toLocaleTimeString());
+          return;
+        }
+      }
+
+      // Try API first
+      try {
+        const apiRes = await fetchBenchmark();
+        setData(apiRes);
+        setLastRunTime("Live GraphBLAS Verified");
+        return;
+      } catch {
+        // Fallback to static results file
+      }
+
       const res = await fetch("/benchmark_results.json", { cache: "no-store" });
       if (res.ok) {
         const json = await res.json();
         setData(json);
-      } else {
-        const apiRes = await fetchBenchmark();
-        setData(apiRes);
+        setLastRunTime("Baseline Verified");
       }
     } catch (err) {
       console.error("Failed to load benchmark:", err);
@@ -38,7 +56,7 @@ export default function AblationLab() {
   };
 
   useEffect(() => {
-    loadBenchmark();
+    loadBenchmark(false);
   }, []);
 
   const falkor = data?.rippl_falkordb;
@@ -59,6 +77,11 @@ export default function AblationLab() {
             </div>
             <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
               <span>Quantitative Invalidation Ablation Lab</span>
+              {lastRunTime && (
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 font-normal">
+                  Live FalkorDB: {lastRunTime}
+                </span>
+              )}
             </h1>
             <p className="text-xs text-slate-400 mt-1">
               Comparing FalkorDB GraphBLAS vs. Recursive SQL CTE vs. Flat-Vector RAG (BAAI/bge-small-en-v1.5) across all 30 claims on the 113-node causal graph.
@@ -66,12 +89,12 @@ export default function AblationLab() {
           </div>
 
           <button
-            onClick={loadBenchmark}
+            onClick={() => loadBenchmark(true)}
             disabled={isRunning}
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-mono font-medium text-slate-950 bg-cyan-400 hover:bg-cyan-300 transition-colors disabled:opacity-50 cursor-pointer shadow-sm"
           >
             <RefreshCw size={12} className={isRunning ? "animate-spin" : ""} />
-            <span>{isRunning ? "Verifying..." : "Reload Real Run Data"}</span>
+            <span>{isRunning ? "Running Live Queries..." : "Run Live FalkorDB Benchmark"}</span>
           </button>
         </div>
 

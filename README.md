@@ -1,13 +1,3 @@
----
-title: Rippl Causal Memory Layer
-emoji: 🌊
-colorFrom: blue
-colorTo: indigo
-sdk: docker
-app_port: 7860
-pinned: false
----
-
 # Rippl: Deterministic Causal Memory Layer for Autonomous Systems
 
 > **One-line Thesis:** Rippl replaces fragile vector similarity with a load-bearing FalkorDB dependency graph that maps autonomous decisions back to foundational premises, intercepting compromised agent tool executions in **0.93ms** via sparse-matrix GraphBLAS traversal.

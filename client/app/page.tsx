@@ -103,13 +103,12 @@ function RipplProductExperience() {
               onClick={() => setCurrentView("home")}
               className="flex items-center gap-2.5 cursor-pointer group"
             >
-              <div className="w-7 h-7 rounded-md bg-[#121215] border border-zinc-800 flex items-center justify-center text-zinc-300 group-hover:border-zinc-700 transition-colors">
-                <RippleMark size={16} />
+              <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center shrink-0">
+                <RippleMark size={32} />
               </div>
-              <div className="flex items-baseline gap-1.5">
-                <span className="font-semibold text-sm tracking-tight text-zinc-100">Rippl</span>
-                <span className="font-mono text-[11px] text-zinc-500 uppercase tracking-wider">
-                  Causal Layer
+              <div className="flex items-center">
+                <span className="font-semibold text-base tracking-tight text-zinc-100 group-hover:text-white transition-colors">
+                  Rippl
                 </span>
               </div>
             </div>
@@ -188,21 +187,31 @@ function RipplProductExperience() {
             </a>
           </nav>
 
-          {/* Right Header: Clean rounded-full button */}
+          {/* Right Header: Dynamic Action Buttons */}
           <div className="flex items-center gap-2 sm:gap-3">
             <button
               onClick={() => setShowDemoModal(true)}
-              className="p-1.5 rounded-full text-zinc-400 hover:text-white transition-colors cursor-pointer"
-              title="Watch Walkthrough Video"
+              className="px-3 py-1.5 rounded-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-medium"
+              title="Watch Demo Video"
             >
-              <Play size={12} className="fill-current text-zinc-400 hover:text-white" />
+              <Play size={11} className="fill-current text-sky-400" />
+              <span>Demo</span>
             </button>
-            <button
-              onClick={() => setCurrentView("graph")}
-              className="px-4 py-1.5 rounded-full bg-white hover:bg-zinc-200 text-zinc-950 font-medium text-xs transition-colors cursor-pointer shadow-sm"
-            >
-              Launch app
-            </button>
+            {currentView === "home" ? (
+              <button
+                onClick={() => setCurrentView("graph")}
+                className="px-4 py-1.5 rounded-full bg-white hover:bg-zinc-200 text-zinc-950 font-medium text-xs transition-colors cursor-pointer shadow-sm"
+              >
+                Launch app
+              </button>
+            ) : (
+              <button
+                onClick={() => setCurrentView("home")}
+                className="px-3.5 py-1.5 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white font-medium text-xs transition-colors cursor-pointer border border-zinc-700/80"
+              >
+                Overview
+              </button>
+            )}
           </div>
         </div>
       </header>

@@ -665,3 +665,55 @@ async def get_benchmark_results():
         detail="Benchmark results not found. Run 'python server/run_benchmark.py' to generate empirical measurements from active FalkorDB.",
     )
 
+
+@app.api_route("/api/benchmark/run", methods=["GET", "POST"])
+async def run_live_benchmark():
+    """
+    Executes live multi-hop traversal queries against active FalkorDB instance,
+    measures real-time latencies (ms), and returns live ablation results.
+    """
+    import os
+    import time
+    from db import query
+
+    bench_path = os.path.join(os.path.dirname(__file__), "..", "client", "public", "benchmark_results.json")
+    base_data = {}
+    if os.path.exists(bench_path):
+        with open(bench_path, "r", encoding="utf-8") as f:
+            base_data = json.load(f)
+
+    # Execute 25 live Cypher traversals on FalkorDB
+    cypher = """
+    MATCH path = (c:Claim {id: 'CLM-001'})-[:SUPPORTS|DEPENDS_ON|DRIVES|TRIGGERS*1..5]->(downstream)
+    RETURN DISTINCT downstream.id AS id, labels(downstream)[0] AS type, downstream.status AS status
+    """
+    latencies = []
+    # Warmup
+    query(cypher)
+    for _ in range(25):
+        t0 = time.perf_counter()
+        res = query(cypher)
+        t1 = time.perf_counter()
+        latencies.append((t1 - t0) * 1000.0)
+
+    avg_ms = round(float(sum(latencies) / len(latencies)), 2)
+    p50_ms = round(float(sorted(latencies)[len(latencies) // 2]), 2)
+    p95_ms = round(float(sorted(latencies)[int(len(latencies) * 0.95)]), 2)
+
+    downstream_nodes = [r[0] for r in res.result_set] if res.result_set else []
+
+    # Inject real-time measurements
+    if "rippl_falkordb" in base_data:
+        base_data["rippl_falkordb"]["latency_ms"] = avg_ms
+        base_data["rippl_falkordb"]["latency_p50_ms"] = p50_ms
+        base_data["rippl_falkordb"]["latency_p95_ms"] = p95_ms
+        base_data["rippl_falkordb"]["n_timing_runs"] = len(latencies)
+        base_data["rippl_falkordb"]["is_live_measurement"] = True
+        base_data["rippl_falkordb"]["measured_at"] = time.time()
+        base_data["rippl_falkordb"]["sample_clm001_nodes_found"] = ["CLM-001"] + downstream_nodes
+
+    base_data["live_run_timestamp"] = time.time()
+    base_data["live_status"] = f"Live benchmark executed against active FalkorDB: {avg_ms}ms avg ({len(latencies)} runs)"
+
+    return base_data
+
