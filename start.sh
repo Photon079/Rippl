@@ -2,11 +2,26 @@
 set -e
 
 echo "=========================================================="
-echo "  Starting Rippl: Causal Memory Layer on Hugging Face     "
+echo "  Starting Rippl: Causal Memory Layer                     "
 echo "=========================================================="
 
+# Kill any stray FalkorDB browser process if present
+pkill -f "falkordb-browser" 2>/dev/null || true
+
+# Locate FalkorDB module binary
+FALKOR_SO=$(find / -name "falkordb.so" 2>/dev/null | head -n 1)
+if [ -z "$FALKOR_SO" ]; then
+    FALKOR_SO="/var/lib/falkordb/bin/falkordb.so"
+fi
+if [ ! -f "$FALKOR_SO" ]; then
+    FALKOR_SO="/usr/lib/falkordb/falkordb.so"
+fi
+echo "Using FalkorDB module: $FALKOR_SO"
+
 echo "[1/4] Launching FalkorDB GraphBLAS on port 6379..."
-redis-server --loadmodule /usr/lib/falkordb/falkordb.so --daemonize yes --port 6379
+if ! pgrep -f redis-server > /dev/null; then
+    redis-server --loadmodule "$FALKOR_SO" --daemonize yes --port 6379
+fi
 
 echo "[2/4] Waiting for FalkorDB socket..."
 until /app/.venv/bin/python3 -c "import socket; s = socket.create_connection(('127.0.0.1', 6379), timeout=1); s.close()" 2>/dev/null; do
@@ -18,7 +33,7 @@ echo "[3/4] Ingesting 113-node Northwind causal graph..."
 cd /app/server && /app/.venv/bin/python3 seed.py
 
 echo "[4/4] Starting FastAPI backend on port 8000..."
-/app/.venv/bin/python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 &
+/app/.venv/bin/python3 -m uvicorn main:app --host 127.0.0.1 --port 8000 &
 
 echo "      Waiting for FastAPI to be ready..."
 until /app/.venv/bin/python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=1)" 2>/dev/null; do
@@ -26,7 +41,8 @@ until /app/.venv/bin/python3 -c "import urllib.request; urllib.request.urlopen('
 done
 echo "      FastAPI is healthy!"
 
+TARGET_PORT="${PORT:-10000}"
 echo "=========================================================="
-echo "  Serving Next.js frontend on port ${PORT:-7860}          "
+echo "  Serving Next.js frontend on port ${TARGET_PORT}         "
 echo "=========================================================="
-cd /app/client && npx next start -H 0.0.0.0 -p ${PORT:-7860}
+cd /app/client && npx next start -H 0.0.0.0 -p "${TARGET_PORT}"

@@ -1,4 +1,4 @@
-# Multi-stage build for Rippl on Hugging Face Spaces (Port 7860)
+# Multi-stage build for Rippl Production Deployment (Render / Docker)
 
 # Stage 1: Build Next.js Production Bundle
 FROM node:20-slim AS frontend-builder
@@ -9,8 +9,8 @@ COPY client/ ./
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-# Stage 2: Unified Runtime Container (FalkorDB + FastAPI + Next.js)
-FROM falkordb/falkordb:latest
+# Stage 2: Unified Runtime Container (FalkorDB Server + FastAPI + Next.js)
+FROM falkordb/falkordb-server:latest
 
 USER root
 
@@ -20,6 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     python3-venv \
     curl \
+    procps \
     ca-certificates \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
@@ -48,7 +49,7 @@ ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     FALKORDB_HOST=127.0.0.1 \
     FALKORDB_PORT=6379 \
-    PORT=7860 \
+    PORT=10000 \
     INTERNAL_BACKEND_URL=http://127.0.0.1:8000
 
 # Setup Permissions and Startup Script
@@ -56,6 +57,8 @@ COPY start.sh /app/start.sh
 RUN chmod +x /app/start.sh && \
     chmod -R 777 /app 2>/dev/null || true
 
-EXPOSE 7860
+EXPOSE 10000
 
+# Clear entrypoint to prevent default image scripts from interfering
+ENTRYPOINT []
 CMD ["/app/start.sh"]
