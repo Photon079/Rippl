@@ -29,4 +29,4 @@ echo "      FastAPI is healthy!"
 echo "=========================================================="
 echo "  Serving Next.js frontend on port ${PORT:-7860}          "
 echo "=========================================================="
-cd /app/client && npx next start -p ${PORT:-7860}
+cd /app/client && npx next start -H 0.0.0.0 -p ${PORT:-7860}
