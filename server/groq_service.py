@@ -9,6 +9,7 @@ Powers:
 from __future__ import annotations
 import json
 import logging
+import re
 import time
 from typing import Any, Dict, List, Optional
 
@@ -161,9 +162,24 @@ def dynamic_ask_question(question: str) -> Dict[str, Any]:
                 except Exception as e:
                     logger.warning(f"Fuzzy fallback failed: {e}")
 
+        # Verify retrieved records actually match the question's subject matter
+        keywords = [
+            w.lower()
+            for w in re.findall(r'\b\w{4,}\b', question)
+            if w.lower() not in {
+                "what", "where", "which", "does", "from", "with", "this", "that",
+                "about", "depend", "decision", "actions", "premise", "trace", "explain",
+                "reasons", "show", "tell", "have", "been", "made"
+            }
+        ]
+        if keywords and records:
+            records_text = str(records).lower()
+            has_match = any(kw in records_text for kw in keywords)
+            if not has_match:
+                records = []
+
         # Build provenance path from retrieved records
         path_map = {}
-        import re
         if records:
             for row in records:
                 found_ids = re.findall(r'\b(SRC-\d+|CLM-\d+|DEC-\d+|ACT-\d+)\b', str(row))
@@ -181,13 +197,26 @@ def dynamic_ask_question(question: str) -> Dict[str, Any]:
                     path_map[nid]["title"] = info["properties"].get("title") or info["properties"].get("text") or nid
                     path_map[nid]["status"] = info["properties"].get("status", "Verified")
 
+            # Traverse upstream to ensure supporting Sources are included in the provenance path
+            for node_id in list(path_map.keys()):
+                if node_id.startswith("CLM-"):
+                    try:
+                        src_res = query("MATCH (s:Source)-[:STATES]->(c:Claim {id: $cid}) RETURN s.id, s.title", {"cid": node_id})
+                        if src_res and src_res.result_set:
+                            sid = str(src_res.result_set[0][0])
+                            stitle = str(src_res.result_set[0][1])
+                            if sid not in path_map:
+                                path_map[sid] = {"id": sid, "title": stitle, "type": "Source", "status": "Verified"}
+                    except Exception:
+                        pass
+
             provenance_path = list(path_map.values())
 
         if not provenance_path:
             t_elapsed = (time.perf_counter() - t_start) * 1000.0
             return {
                 "question": question,
-                "answer": "Not documented: No causal provenance path found in the Northwind dependency graph for this query.",
+                "answer": "Not documented: No causal provenance path found in the Northwind dependency graph for this query. Autonomous agents cannot verify premises or cite dependencies for unrecorded causal claims.",
                 "cypher_query": raw_cypher,
                 "provenance_path": [],
                 "execution_time_ms": round(max(0.8, t_elapsed), 2),

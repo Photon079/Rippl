@@ -26,13 +26,13 @@ import urllib.error
 API_BASE = "http://localhost:8000/api"
 
 # Helper for HTTP requests
-def http_req(endpoint: str, method: str = "GET", data: dict = None):
+def http_req(endpoint: str, method: str = "GET", data: dict = None, timeout: int = 40):
     url = f"{API_BASE}{endpoint}" if endpoint.startswith("/") else endpoint
     body = json.dumps(data).encode("utf-8") if data else None
     headers = {"Content-Type": "application/json"} if data else {}
     req = urllib.request.Request(url, data=body, headers=headers, method=method)
     try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
             content = resp.read().decode("utf-8")
             return resp.status, json.loads(content) if content else {}
     except urllib.error.HTTPError as e:

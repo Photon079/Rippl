@@ -563,14 +563,42 @@ async def ask_provenance_endpoint(req: AskRequest):
 @app.post("/api/agent/execute")
 async def execute_agent_action():
     """
-    Executes LangGraph/Groq Autonomous ExecutorAgent attempting high-risk action ACT-001.
+    Executes LangGraph Autonomous ExecutorAgent attempting high-risk action ACT-001.
     Evaluates preflight guardrails in FalkorDB; hard-refuses if premises are retracted.
     """
-    return run_autonomous_agent(
-        goal="Consolidate Northwind billing queue onto Shard-09 safely.",
-        action_id="ACT-001",
-        decision_id="DEC-001",
-    )
+    decision_id = "DEC-001"
+    action_id = "ACT-001"
+    goal = "Consolidate Northwind billing queue onto Shard-09 safely."
+    try:
+        from agent import run_executor_agent
+        result = run_executor_agent(action_id, decision_id, goal)
+        is_safe = result.get("preflight_passed", False)
+        exec_res = result.get("execution_result") or {}
+        pf = preflight_check(decision_id)
+        return {
+            "success": is_safe,
+            "status": exec_res.get("status", "HARD_REFUSAL"),
+            "error": None if is_safe else "PremiseRetractedError",
+            "message": exec_res.get("message", ""),
+            "decision_id": decision_id,
+            "action_id": action_id,
+            "premises": pf.get("premises", []),
+            "agent_id": "AGT-001",
+            "agent_name": "LangGraph ExecutorAgent (Rippl Causal Gate)",
+            "goal": goal,
+            "execution_allowed": is_safe,
+            "logs": result.get("logs", []),
+            "steps": [{"step": i + 1, "log": log} for i, log in enumerate(result.get("logs", []))],
+            "final_response": exec_res.get("message", ""),
+            "llm_provider": "LangGraph StateGraph + FalkorDB GraphBLAS",
+        }
+    except Exception as e:
+        logger.error(f"LangGraph ExecutorAgent error: {e}")
+        return run_autonomous_agent(
+            goal=goal,
+            action_id=action_id,
+            decision_id=decision_id,
+        )
 
 
 @app.post("/api/agent/run")
