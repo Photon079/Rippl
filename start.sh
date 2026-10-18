@@ -5,21 +5,18 @@ echo "=========================================================="
 echo "  Starting Rippl: Causal Memory Layer                     "
 echo "=========================================================="
 
-# Kill any stray FalkorDB browser process if present
-pkill -f "falkordb-browser" 2>/dev/null || true
-
-# Locate FalkorDB module binary
+# Find FalkorDB module binary
 FALKOR_SO=$(find / -name "falkordb.so" 2>/dev/null | head -n 1)
 if [ -z "$FALKOR_SO" ]; then
-    FALKOR_SO="/var/lib/falkordb/bin/falkordb.so"
+    FALKOR_SO="/usr/lib/falkordb/falkordb.so"
 fi
 if [ ! -f "$FALKOR_SO" ]; then
-    FALKOR_SO="/usr/lib/falkordb/falkordb.so"
+    FALKOR_SO="/var/lib/falkordb/bin/falkordb.so"
 fi
 echo "Using FalkorDB module: $FALKOR_SO"
 
-echo "[1/4] Launching FalkorDB GraphBLAS on port 6379..."
-if ! pgrep -f redis-server > /dev/null; then
+echo "[1/4] Launching FalkorDB on port 6379..."
+if ! redis-cli -p 6379 ping 2>/dev/null | grep -q PONG; then
     redis-server --loadmodule "$FALKOR_SO" --daemonize yes --port 6379
 fi
 

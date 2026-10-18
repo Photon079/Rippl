@@ -9,10 +9,14 @@ COPY client/ ./
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-# Stage 2: Unified Runtime Container (FalkorDB Server + FastAPI + Next.js)
-FROM falkordb/falkordb-server:latest
+# Stage 2: Unified Runtime Container (FalkorDB + FastAPI + Next.js)
+FROM falkordb/falkordb:latest
 
 USER root
+
+# Disable and remove bundled FalkorDB Browser so only Rippl is served
+RUN rm -f /docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh 2>/dev/null || true && \
+    rm -rf /falkordb-browser /opt/falkordb-browser 2>/dev/null || true
 
 # Install Python 3.11, Node.js 20, and utilities
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -20,7 +24,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     python3-venv \
     curl \
-    procps \
     ca-certificates \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
@@ -59,6 +62,6 @@ RUN chmod +x /app/start.sh && \
 
 EXPOSE 10000
 
-# Clear entrypoint to prevent default image scripts from interfering
+# Completely override base image entrypoint so ONLY /app/start.sh runs
 ENTRYPOINT []
 CMD ["/app/start.sh"]
