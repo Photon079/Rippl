@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+client/node_modules/
+.venv/
+server/.venv/
+
+# Build caches
+.next/
+client/.next/
+__pycache__/
+*.pyc
+
+# Local files & media
+*.mp4
+*.gif
+*.webm
+demo.mp4
+FEATURES.md
+prd.md
+demo_voiceover_script.md
+.env
+.env.local
+.git/
