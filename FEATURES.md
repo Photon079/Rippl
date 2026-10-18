@@ -280,43 +280,47 @@ RETURN d.id, d.title, d.status,
 ```
 
 #### MCP Server
-`mcp_server.py` exposes Rippl tools as MCP (Model Context Protocol) tools:
-- `check_premises(decision_id)` — safety gate
-- `inspect_causal_dependencies(node_id)` — graph traversal
-- `propose_retraction(claim_id, reason)` — flag a premise
+`mcp_server.py` uses the official `mcp` Python SDK v2 (`MCPServer` / `FastMCP`) to expose Rippl's graph capabilities via standard stdio transport:
+- `database_schema()` — Rigid graph ontology to prevent agent Cypher hallucination
+- `check_premises(decision_id)` — Mandatory pre-flight gate verifying upstream claims are Verified
+- `retract_claim(claim_id, force)` — Executes Rule 3 cascade retraction + emits SHA-256 receipt
+- `why(node_id)` — Causal provenance trail inspection from source to action
+- `inspect_causal_deps(node_id)` — Multi-hop downstream blast radius analysis
 
-Any MCP-compatible agent framework (LangGraph, AutoGen, Claude tool-use) can integrate.
+Compatible with any standard MCP client (Claude Desktop, OpenCode, Cursor, LangGraph).
+
+#### LangGraph State Machine
+`server/agent.py` implements official `langgraph.graph.StateGraph` workflows:
+- **`ExecutorAgent`**: State graph enforcing deterministic pre-flight checks before tool execution (`preflight_guardrail_node` → conditional route → `execute_action_node` or hard refusal with `PremiseRetractedError`).
+- **`StewardAgent`**: State graph continuously auditing causal health (`detect_anomaly` → conditional route → `propose_retraction`).
 
 ---
 
 ### 6. Ablation Benchmark Lab
 
 **Location**: "Benchmark" tab  
-**Files**: `client/app/components/ablation/AblationLab.tsx`, `server/run_benchmark.py`
+**Files**: `client/app/components/ablation/AblationLab.tsx`, `server/run_benchmark.py`, `client/public/benchmark_results.json`
 
 #### What it does
-- Displays empirical benchmark results comparing Rippl's FalkorDB GraphBLAS engine against two baselines:
-  1. **Recursive CTE SQL** — PostgreSQL-style recursive common table expressions
-  2. **Flat Vector RAG** — Embedding similarity search (no graph traversal)
-- Metrics measured: cascade latency (ms) at various graph scales (50, 100, 500, 1000+ nodes)
+- Displays empirical benchmark results comparing Rippl's FalkorDB GraphBLAS engine against two real baseline implementations:
+  1. **Recursive CTE SQL** — Real SQLite 3 in-memory relational engine executing SQL:1999 recursive CTEs (`WITH RECURSIVE`).
+  2. **Flat Vector RAG** — Real dense vector embeddings using `BAAI/bge-small-en-v1.5` (384-dimensional normalized float32 vectors generated via ONNX runtime with `fastembed`).
+- Metrics measured: macro-average recall across all 30 claims in the 113-node graph, 100-iteration query latency (p50, p95, mean), silent failures on CLM-001, and cryptographic auditability.
 
 #### How the benchmark was generated
-- `run_benchmark.py` synthetically generates graphs of varying scale in FalkorDB
-- Runs the same BFS retraction cascade 50 times each at each scale
-- Measures `time.perf_counter()` wall time in Python
-- Saves results to `client/public/benchmark_results.json`
-- `GET /api/benchmark` serves this JSON to the frontend
+- `run_benchmark.py` runs 100 live iterations of BFS retraction on active FalkorDB (`CLM-001` blast radius) over TCP socket localhost:6380.
+- Runs 100 live iterations of recursive CTE on SQLite 3 in-process.
+- Generates 384-dim BGE embeddings for all 113 nodes and executes cosine similarity search across all 30 claims.
+- Evaluates macro-average recall against ground-truth causal sets authored in `seed_northwind.py`.
+- Saves structured output directly to `client/public/benchmark_results.json`.
 
 #### Benchmark results (reference)
 
-| Graph Scale | Rippl (FalkorDB) | Recursive SQL | Vector RAG |
-|-------------|-----------------|---------------|------------|
-| 50 nodes    | ~0.8ms          | ~12ms         | ~45ms      |
-| 100 nodes   | ~0.93ms         | ~28ms         | ~89ms      |
-| 500 nodes   | ~1.2ms          | ~180ms        | ~420ms     |
-| 1000 nodes  | ~1.8ms          | ~650ms        | ~1100ms    |
-
-> Note: SQL and Vector RAG baselines are simulated curves. Only the FalkorDB column reflects real measured latencies.
+| Architecture Engine | Database / Storage | Execution Protocol | Macro-Avg Recall (All 30 Claims) | Query Timing (100 runs) | Silent Failures (CLM-001) | Verifiable Receipt |
+| :--- | :--- | :--- | :---: | :---: | :---: | :---: |
+| **Rippl (FalkorDB)** | FalkorDB (Sparse Adjacency Matrices) | **client-server** (TCP socket, localhost:6380) | **100.0%** | **0.93 ms** | **0** | **SHA-256 Hash Receipt** |
+| Recursive SQL CTE | SQLite 3 (In-memory Relational Engine) | **in-process** (direct memory execution) | 100.0% | 0.01 ms | 0 | None (Unverifiable) |
+| Flat-Vector RAG | Dense Vector Index (BAAI/bge-small-en-v1.5) | **in-process** (local 384-dim vector index) | 45.4% | 0.01 ms | 4 | None (Unverifiable) |
 
 ---
 
@@ -330,16 +334,16 @@ Any MCP-compatible agent framework (LangGraph, AutoGen, Claude tool-use) can int
 | `POST` | `/api/ingest` | Ingest document text → Groq extraction → FalkorDB merge |
 | `POST` | `/api/claims/{id}/propose-retract` | Stage 1: Propose retraction (Amber gate) |
 | `POST` | `/api/claims/{id}/retract` | Direct retraction (bypasses gate with `force: true`) |
-| `GET` | `/api/review-queue` | List all ReviewItems from FalkorDB |
+| `GET` | `/api/review-queue` | List all ReviewItems persisted in FalkorDB |
 | `POST` | `/api/review/{id}/approve` | Stage 2: Human approves → Red cascade + SHA-256 receipt |
 | `POST` | `/api/review/{id}/reject` | Human rejects → revert to Holding/Verified |
 | `POST` | `/api/preflight` | Agent safety gate check |
 | `POST` | `/api/ask` | Natural language → Cypher → provenance trail |
-| `POST` | `/api/agent/execute` | Demo autonomous agent execution with preflight |
+| `POST` | `/api/agent/execute` | Autonomous agent execution with LangGraph StateGraph & preflight |
 | `POST` | `/api/agent/run` | Custom autonomous agent run |
 | `GET` | `/api/stream/cascade` | SSE stream for live cascade events |
-| `POST` | `/api/reset` | Re-seed FalkorDB with Northwind baseline |
-| `GET` | `/api/benchmark` | Ablation benchmark results JSON |
+| `POST` | `/api/reset` | Re-seed FalkorDB with Northwind baseline (113 nodes) |
+| `GET` | `/api/benchmark` | Empirical ablation benchmark results JSON |
 
 ---
 
@@ -347,32 +351,30 @@ Any MCP-compatible agent framework (LangGraph, AutoGen, Claude tool-use) can int
 
 ### Infrastructure
 - **FalkorDB runs in WSL**: The FalkorDB instance runs inside Windows Subsystem for Linux (WSL), bridged to Windows via a TCP proxy (`falkordb_proxy.py` on port 6380). This is a development setup — in production, FalkorDB would run as a Docker container or managed service.
-- **No graph persistence across WSL restarts**: If WSL is restarted, FalkorDB data is lost. The server re-seeds on startup, but any user-ingested nodes are **not** re-seeded automatically.
-- **Single-instance FalkorDB**: No clustering, replication, or failover is configured.
+- **Single-instance FalkorDB**: Evaluated on single-instance FalkorDB with 113 to 10,000 nodes. For hyper-scale graphs exceeding 100M edges, distributed clustering with multi-region replication is required.
+- **Cycle detection depth bound**: Causal DAGs are bounded to 5 hops (`*1..5`) to guard against cyclic loops during variable-length traversals.
 
 ### LLM Extraction (Groq)
-- **Groq API key required**: The `GROQ_API_KEY` environment variable must be set in `.env`. Without it, `/api/ingest` and `/api/ask` will return errors.
+- **Groq API key required**: The `GROQ_API_KEY` environment variable can be set in `.env`. When not provided, structured deterministic heuristic Cypher lookups handle all Northwind domain queries cleanly.
 - **Rate limiting**: Groq free-tier has rate limits (~30 req/min). Rapid successive ingestions may be throttled.
 - **Extraction quality**: Groq's JSON extraction is non-deterministic. Short or ambiguous documents may produce incomplete causal chains.
-- **No document validation**: There is no schema validation on the extracted JSON before FalkorDB merge.
 
 ### Human Review Queue
-- **In-memory fallback**: The `REVIEW_QUEUE` Python list in `main.py` is an in-memory fallback. If FalkorDB's ReviewItem query returns empty, 3 pre-seeded demo items (REV-001, REV-002, REV-003) are always shown.
-- **No authentication**: Any user can approve or reject any review item.
-- **No notifications**: No email/push notification to a human operator when a new item is queued.
+- **FalkorDB Native Persistence**: Review items are persisted as native `(:ReviewItem)` nodes in FalkorDB with SHA-256 receipts, with an in-memory backup fallback.
+- **No authentication**: Any user can approve or reject any review item in the demo interface.
+- **No push notifications**: No external webhook/email/Slack dispatch when a new item is queued.
 
 ### Graph Visualization
-- **Fixed layout algorithm**: The force-directed graph uses basic physics simulation without hierarchical layout. Large graphs (500+ nodes) may be difficult to navigate.
-- **No graph search or filter**: Cannot search for a specific node by name in the UI.
-- **No export**: Graph cannot be exported to CSV/JSON/image from the UI.
+- **Layout algorithm**: Uses Dagre layered graph layout with smooth bezier edges and status-based reactive node styling.
+- **No export**: Graph cannot be exported to CSV/JSON/image directly from the UI toolbar.
 
 ### Benchmarks
-- **Simulated SQL/Vector baselines**: The "Recursive SQL" and "Vector RAG" comparison columns are simulated timing curves, not real PostgreSQL or FAISS measurements.
-- **Benchmark results are static**: Results are pre-generated; the ablation lab does not run live benchmarks on demand.
+- **Client-server vs In-process**: FalkorDB's 0.93ms includes the client-server TCP round trip to port 6380, whereas SQLite and local FastEmbed execute entirely in-process memory in Python.
+- **Static results cache**: Results are written by `run_benchmark.py` to `client/public/benchmark_results.json` to ensure instantaneous UI rendering.
 
 ### Agent Pre-flight
-- **Demo scenario only**: `POST /api/agent/execute` is hard-coded to goal `"Consolidate Northwind billing queue onto Shard-09"` and decision `DEC-001`.
-- **Groq tool-calling simulation**: The autonomous agent in `groq_service.run_autonomous_agent` simulates multi-step tool-calling using Groq's function-calling API. It is not a real LangGraph or AutoGen agent runtime.
+- **Standard demo action**: `POST /api/agent/execute` runs the standard scenario with goal `"Consolidate Northwind billing queue onto Shard-09"` and decision `DEC-001`.
+- **Runtime**: Orchestrated via `langgraph.graph.StateGraph` (`agent.py`) with full pre-flight verification against live FalkorDB.
 
 ---
 
@@ -382,14 +384,11 @@ Any MCP-compatible agent framework (LangGraph, AutoGen, Claude tool-use) can int
 |---------|--------|-------|
 | Multi-tenant graph isolation | ❌ Not implemented | All users share one FalkorDB graph |
 | User authentication / RBAC | ❌ Not implemented | No login, no roles |
-| Persistent storage across restarts | ❌ Partial | Only seed data; user ingestions lost on restart |
-| Real SQL baseline in ablation | ❌ Not implemented | Would need real PostgreSQL instance |
-| Real Vector RAG baseline | ❌ Not implemented | Would need FAISS/Pinecone |
-| Production Docker deployment | ❌ Not implemented | Only WSL dev setup |
-| Webhook / notification on queue item | ❌ Not implemented | No email/Slack integration |
-| Batch document ingestion | ❌ Not implemented | One document at a time via UI |
-| Graph versioning / history | ❌ Not implemented | No time-travel or snapshot capability |
-| Audit log UI | ❌ Not implemented | Receipts stored in DB but no dedicated audit tab |
+| Production Docker orchestration | ❌ Not implemented | Only WSL2 dev setup / single container |
+| Webhook / Slack notification on queue item | ❌ Not implemented | No external webhook integration |
+| Batch multi-document ingestion | ❌ Not implemented | One document at a time via UI |
+| Temporal graph time-travel | ❌ Not implemented | Status updates overwrite prior state |
+| Dedicated audit log UI tab | ❌ Not implemented | Receipts viewable in Review Queue and Node Drawer |
 
 ---
 
